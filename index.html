@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>タイピングつりゲーム</title>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b1b3a; --ink:#ffffff; --panel:#3b3b3b; --gold:#ffe066; --gold-d:#5a3b00;
+  --key:#c6c6c6; --key-ink:#333333; --btn:#8b8b8b;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#050c1c; --panel:#2f2f2f; --key:#b4b4b4; }
+}
+:root[data-theme="dark"]{ --bg:#050c1c; --panel:#2f2f2f; --key:#b4b4b4; }
+*,*::before,*::after{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  height:100%;background:var(--bg);color:var(--ink);overflow:hidden;
+  font-family:"DotGothic16","Hiragino Maru Gothic ProN","Hiragino Sans","Yu Gothic",sans-serif;
+  -webkit-user-select:none;user-select:none;touch-action:manipulation;
+}
+#app{height:100%;display:flex;flex-direction:column;position:relative}
+#hud{display:flex;gap:8px;align-items:center;padding:8px 12px;background:#1a1a1a;flex-wrap:wrap}
+#hud .sp{flex:1}
+.chip{background:#2b2b2b;border:3px solid;border-color:#111 #555 #555 #111;padding:6px 12px;font-size:clamp(13px,2vw,21px);text-shadow:2px 2px #000;white-space:nowrap}
+.btn{
+  font-family:inherit;font-size:clamp(14px,2.2vw,22px);color:#fff;text-shadow:2px 2px #3f3f3f;
+  background:var(--btn);border:4px solid;border-color:#d8d8d8 #373737 #373737 #d8d8d8;
+  padding:6px 14px;cursor:pointer;
+}
+.btn:active{border-color:#373737 #d8d8d8 #d8d8d8 #373737}
+.btn.big{font-size:clamp(18px,3vw,30px);padding:10px 30px;background:#5b8f2e;border-color:#a8e06a #2d4a14 #2d4a14 #a8e06a}
+#stage{flex:1;min-height:0;position:relative;overflow:hidden}
+#c{position:absolute;left:0;top:0;display:block}
+#kbd{display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 8px 10px;background:#1a1a1a}
+.row{display:flex;gap:5px}
+.k{
+  width:clamp(28px,5.4vw,64px);height:clamp(26px,4.3vw,52px);display:flex;align-items:center;justify-content:center;
+  font-family:inherit;font-size:clamp(15px,2.6vw,28px);color:var(--key-ink);background:var(--key);
+  border:3px solid;border-color:#fff #555 #555 #fff;position:relative;cursor:pointer;
+}
+.k.bump{padding-bottom:clamp(4px,1vw,8px)}
+.k[data-k="0"]::after{content:"";position:absolute;left:50%;top:50%;width:max(2px,.09em);height:1.05em;background:currentColor;transform:translate(-50%,-50%) rotate(24deg)}
+.k.bump::after{content:"";position:absolute;bottom:2px;width:34%;height:2px;border-radius:1px;background:#666}
+.k.on{background:var(--gold);color:var(--gold-d);border-color:#fff7c2 #a07800 #a07800 #fff7c2;box-shadow:0 0 14px 3px rgba(255,224,102,.85);animation:pulse 1s ease-in-out infinite}
+.k.hit{background:#8fe05a}
+.k.miss{background:#d98a8a}
+@keyframes pulse{50%{box-shadow:0 0 22px 7px rgba(255,224,102,1)}}
+@media (prefers-reduced-motion: reduce){.k.on{animation:none}}
+.ov{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,10,26,.84);z-index:5;padding:10px}
+.ov.show{display:flex}
+.panel{
+  background:var(--panel);border:5px solid;border-color:#8a8a8a #151515 #151515 #8a8a8a;
+  padding:clamp(12px,2.4vw,26px);width:min(980px,98vw);max-height:98%;overflow:auto;text-align:center;text-shadow:2px 2px #000;
+}
+.panel h1{font-size:clamp(26px,5vw,56px);color:var(--gold);text-shadow:4px 4px var(--gold-d);margin-bottom:8px;line-height:1.2}
+.panel h2{font-size:clamp(22px,4vw,40px);color:var(--gold);text-shadow:3px 3px var(--gold-d);margin-bottom:8px}
+.panel p{font-size:clamp(14px,2.2vw,22px);line-height:1.6;margin:8px 0}
+.panel .btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+#lvGrid{display:grid;grid-template-columns:auto repeat(6,minmax(0,1fr));gap:6px;margin:10px 0;align-items:stretch}
+.lh{font-size:clamp(10px,1.5vw,15px);line-height:1.3;padding:2px;color:#e8e8e8}
+.lh small{display:block;color:#9fb4c8;font-size:.85em;word-break:break-all}
+.rl{display:flex;align-items:center;justify-content:center;font-size:clamp(12px,2vw,20px);color:var(--gold);padding-right:6px;white-space:nowrap}
+.lv{
+  font-family:inherit;color:#fff;border:3px solid;border-color:#d8d8d8 #222 #222 #d8d8d8;padding:6px 2px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;
+  font-size:clamp(12px,2vw,20px);text-shadow:2px 2px #000;min-height:clamp(46px,8vw,84px);
+}
+.lv:active{border-color:#222 #d8d8d8 #d8d8d8 #222}
+.lv .ic{display:grid;grid-template-columns:repeat(2,auto);gap:2px;justify-content:center}
+.lv .ic canvas{width:clamp(16px,2.8vw,30px);image-rendering:pixelated;aspect-ratio:16/10}
+.lv .cl{font-size:.7em;color:#b6f23c}
+.lv .sm{font-size:.62em;color:#dfe8f2}
+#dexGrid,#resGrid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:10px 0}
+@media (max-width:720px){#dexGrid,#resGrid{grid-template-columns:repeat(3,1fr)}}
+.tile{
+  font-family:inherit;color:#fff;background:#262626;border:3px solid;border-color:#111 #555 #555 #111;
+  padding:6px 4px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;text-shadow:1px 1px #000;
+  font-size:clamp(10px,1.5vw,15px);
+}
+.tile.uncommon{border-color:#1f6b33 #5ee27a #5ee27a #1f6b33}
+.tile.rare{border-color:#1b4f8a #4da6ff #4da6ff #1b4f8a}
+.tile.epic{border-color:#5a2a86 #c88bff #c88bff #5a2a86;box-shadow:0 0 10px rgba(192,92,255,.6)}
+.tile .rr{font-size:.72em;line-height:1.2}
+.rr.r0{color:#b9c2ca}.rr.r1{color:#5ee27a}.rr.r2{color:#6db8ff}.rr.r3{color:#d9a0ff}
+.tile.sel{background:#3d4a66}
+.tile canvas{width:clamp(44px,8vw,88px);image-rendering:pixelated;aspect-ratio:16/10}
+.tile .ct{color:#b6f23c}
+.tile .nw{color:var(--gold)}
+.tile .lvl{color:#8fa3b8;font-size:.85em}
+#dexInfo{min-height:4.4em;font-size:clamp(14px,2.2vw,22px);line-height:1.6;background:#262626;border:3px solid;border-color:#111 #555 #555 #111;padding:8px 12px}
+#dexPanel{display:flex;flex-direction:column;overflow:hidden}
+#dexPanel h2,#dexPanel #dexInfo,#dexPanel .btns{flex:none}
+#dexPanel #dexGrid{flex:1 1 auto;min-height:0;overflow-y:auto;align-content:start;-webkit-overflow-scrolling:touch}
+#resNote{color:#b6f23c}
+.dia{display:flex;flex-direction:column;align-items:center;gap:5px;margin:10px 0}
+.dia .k{cursor:default;color:#222}
+.dia .k.home{outline:3px solid #fff;outline-offset:1px}
+.dia .k.fj{box-shadow:0 0 14px 3px rgba(255,255,255,.9);animation:pulse 1s ease-in-out infinite}
+.dia .k.down{background:#7be06a !important;transform:translateY(2px)}
+@media (prefers-reduced-motion: reduce){.dia .k.fj{animation:none}}
+.legend{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:6px 0}
+.legend span{padding:3px 10px;color:#222;text-shadow:none;border:2px solid #222;font-size:clamp(11px,1.7vw,16px)}
+.dexhead{grid-column:1/-1;text-align:left;color:var(--gold);font-size:clamp(13px,2vw,20px);padding:8px 4px 2px;border-bottom:2px solid #555}
+.panel.pastel{background:#fdf3e2;border:4px dashed #f2a7b8;color:#5a4636;text-shadow:none}
+.panel.pastel h2{color:#ff6f91;text-shadow:none;font-size:clamp(22px,4.2vw,44px);margin-bottom:4px}
+.panel.pastel h2 em{font-style:normal;color:#4da6e8}
+.panel.pastel p{color:#5a4636}
+.panel.pastel p.lvname{color:#f08a24;font-size:clamp(14px,2.2vw,22px);margin:0 0 4px}
+.panel.pastel b{color:#e0558a}
+.panel.pastel p.go{color:#f08a24;text-shadow:none}
+.dia svg{width:min(100%,720px);height:auto;display:block;overflow:hidden}
+.hpwrap{position:relative;width:min(100%,720px);margin:0 auto}
+.hpwrap img{width:100%;height:auto;display:block;user-select:none;-webkit-user-drag:none}
+.hpwrap .key{position:absolute;top:38.55%;width:7.58%;height:17.27%;border-radius:14%;pointer-events:none;box-sizing:border-box;border:3px solid transparent;transition:background .08s}
+.hpwrap .key.f{left:31.04%}
+.hpwrap .key.j{left:56.87%}
+.hpwrap .key.fj{box-shadow:0 0 14px 3px rgba(255,255,255,.9);animation:pulse 1s ease-in-out infinite}
+.hpwrap .key.down{background:rgba(123,224,106,.6);border-color:#4cbf3d}
+@media (prefers-reduced-motion: reduce){.hpwrap .key.fj{animation:none}}
+.dia .key text{font-family:"DotGothic16","Hiragino Sans",sans-serif;font-size:22px;fill:#4a3f55;text-anchor:middle;pointer-events:none}
+.dia .key.down rect{fill:#7be06a}
+.dia .hl{animation:glow 1.1s ease-in-out infinite}
+@keyframes glow{50%{stroke-width:7}}
+@media (prefers-reduced-motion: reduce){.dia .hl{animation:none}}
+.panel p.go{font-size:clamp(18px,3vw,32px);color:var(--gold);text-shadow:3px 3px var(--gold-d)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="chip" id="lvChip">Lv1</div>
+    <div class="chip" id="cnt">つった かず 0 / 12</div>
+    <div class="sp"></div>
+    <button class="btn" id="bHome">ホーム</button>
+    <button class="btn" id="bDex">ずかん</button>
+    <button class="btn" id="bSnd">おと ON</button>
+  </div>
+  <div id="stage"><canvas id="c"></canvas></div>
+  <div id="kbd"></div>
+
+  <div class="ov show" id="ovHome">
+    <div class="panel">
+      <h1>タイピングつりゲーム</h1>
+      <div class="btns" style="margin-top:4px"><button class="btn big" id="bHomeDex">ずかん <span id="dexCnt"></span></button></div>
+      <p>レベルを えらんでね</p>
+      <div id="lvGrid"></div>
+      <p style="font-size:clamp(11px,1.7vw,15px);color:#aab">スペースキー か Enter で、 まえに あそんだ レベルの じゅんびが できるよ。</p>
+    </div>
+  </div>
+
+  <div class="ov" id="ovReady">
+    <div class="panel pastel">
+      <p id="rdTitle" class="lvname">Lv1</p>
+      <h2>ホームポジションの <em>おぼえかた</em></h2>
+      <p>ひだりの ひとさしゆびを <b>F</b>、 みぎの ひとさしゆびを <b>J</b> に のせよう！</p>
+      <div class="dia" id="homeDia"></div>
+      <p class="go">F と J を いっしょに おすと スタート！</p>
+      <div class="btns">
+        <button class="btn" id="bReadyBack">もどる</button>
+        <button class="btn" id="bReadyTap" style="font-size:clamp(11px,1.6vw,15px)">キーボードが ないとき</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ov" id="ovDex">
+    <div class="panel" id="dexPanel">
+      <h2 id="dexTitle">ずかん</h2>
+      <div id="dexGrid"></div>
+      <div id="dexInfo">おさかなを おして みてね</div>
+      <div class="btns"><button class="btn" id="bDexClose">とじる</button></div>
+    </div>
+  </div>
+
+  <div class="ov" id="ovRes">
+    <div class="panel">
+      <h2>きょうの ちょうか</h2>
+      <div id="resGrid"></div>
+      <p id="resNote"></p>
+      <div class="btns">
+        <button class="btn big" id="bAgain">もういっかい</button>
+        <button class="btn" id="bNext">つぎの レベル</button>
+        <button class="btn" id="bResHome">ホーム</button>
+        <button class="btn" id="bResDex">ずかん</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ================= 設定 ================= */
+  const ROUND_N = 12;   // 1回で釣る数
+  const MAXLEN = 5;     // 文字数の上限（レベルは 6（海の数） × MAXLEN 個）
+  const ALL = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+  const KEY_ROWS = ["1234567890", "QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
+
+  // キーの範囲（列）
+  const SETS = [
+    { label:"ホーム\nれつ",   chars:"ASDFGHJKL" },
+    { label:"した\nれつ",     chars:"ZXCVBNM" },
+    { label:"うえ\nれつ",     chars:"QWERTYUIOP" },
+    { label:"AIUEO",           chars:"AIUEO" },
+    { label:"かず\nれつ",     chars:"1234567890" },
+    { label:"ぜんぶ",         chars:ALL }
+  ];
+  // 海のテーマ（キーの範囲ごと）
+  const THEMES = [
+    { name:"あさい うみ",           top:[124,200,239], bot:[47,134,201], floor:"sand", weed:"green", dark:false },
+    { name:"あたたかい うみ",       top:[120,232,226], bot:[24,140,168], floor:"sand", weed:"coral", dark:false },
+    { name:"さむい うみ",           top:[168,198,224], bot:[48,88,140],  floor:"rock", weed:null,    dark:false, ice:3 },
+    { name:"にほんかい",             top:[84,150,176],  bot:[22,72,112],  floor:"rock", weed:"green", dark:false },
+    { name:"ほっきょく なんきょく", top:[206,236,250], bot:[84,136,190], floor:"ice",  weed:null,    dark:false, ice:5 },
+    { name:"ふかい うみ",           top:[15,42,92],    bot:[3,8,20],     floor:"deep", weed:null,    dark:true, glow:true }
+  ];
+  // 列ごとの魚。 [文字数1〜5] それぞれ [コモン, アンコモン, レア, エピック]
+  const LEVEL_FISH = [
+    // ホームれつ：あさい うみ（こざかな）
+    [["iwashi","mebaru","tatsu","iseebi"], ["aji","kasago","hitode","minokasago"], ["haze","kouika","uni","kabutogani"], ["kisu","bora","yadokari","hakofugu"], ["umitanago","anago","kurage","kaeruanko"]],
+    // したれつ：あたたかい うみ
+    [["kumanomi","rurisuzume","nanyouhagi","naporeon"], ["umigame","chouchouuo","manta","shumokuzame"], ["harisenbon","budai","utsubo","jugon"], ["tsunodashi","murasamemongara","jinbei","taimai"], ["tobiuo","shiira","kajiki","bashokajiki"]],
+    // うえれつ：さむい うみ
+    [["sake","shishamo","tarabagani","rakko"], ["nishin","kinki","mizudako","todo"], ["tara","ainame","gomafu","seiuchi"], ["hokke","sukeotara","surumeika","zatoukujira"], ["karei","sakuramasu","minku","ookamiuo"]],
+    // AIUEO：にほんかい
+    [["buri","suzuki","zuwai","shiroebi"], ["hirame","isaki","hotaruika","benizuwai"], ["saba","kawahagi","anko","kuromaguro"], ["tai","hatahata","madako","bandouiruka"], ["fugu","hiramasa","nodoguro","akamanbou"]],
+    // かずれつ：ほっきょく・なんきょく
+    [["kotei","gentoo","shachi","ousamapenguin"], ["adelie","iwatobi","hyoazarashi","zouazarashi"], ["hokkyokudara","weddell","ikkaku","nishiondenzame"], ["koriuo","hokkyokuiwana","shiroiruka","tategamikurage"], ["okiami","raiyodamashi","shirokujira","hokkyokukujira"]],
+    // ぜんぶ：ふかい うみ
+    [["takaashi","kinmedai","ankou","rabuka"], ["daiouika","yokozunaiwashi","ryuguu","daiouhouzukiika"], ["gusoku","onikinme","mendako","makkoukujira"], ["houraieso","akagutsu","mitsukuri","dumbooctopus"], ["demenigisu","hikarikinmedai","shiirakansu","megamouth"]]
+  ];
+  const LEVELS = [];
+  for(let len = 1; len <= MAXLEN; len++){
+    for(let s = 0; s < 6; s++){
+      LEVELS.push({ id:LEVELS.length + 1, len, set:s, fish:LEVEL_FISH[s][len - 1] });
+    }
+  }
+
+  /* ================= ドット絵（16x10） ================= */
+  const SHAPES = {
+    slim:[
+      "................",
+      ".....oooooo.....",
+      "...oobbbbbboo.f.",
+      "..obkbbbbbbbbofo",
+      "..oblllllllbbbof",
+      "...ooobbbbbboo.f",
+      ".......oooooo..."],
+    round:[
+      "....oooooooo....",
+      "..ooobbbbbbboo.f",
+      ".obkbbbbbbbbbofo",
+      ".obbbbbbbbbbbbof",
+      ".oblllllllllbbof",
+      "..ooollllllboo.f",
+      "....ooooooooo..."],
+    puffy:[
+      "....oooooooo....",
+      "..oobbbbbbbboo..",
+      ".obkbbbbbbbbbbo.",
+      ".obbbbbbbbbbbbof",
+      ".oblllllllllbbof",
+      ".oblllllllllbbo.",
+      "..ooollllllooo..",
+      "....oooooooo...."],
+    jelly:[
+      ".....oooooo.....",
+      "...ooppppppoo...",
+      "..oppplllpppppo.",
+      "..oppkppppkppo..",
+      "..oooooooooooo..",
+      "...o.o.o.o.o.o..",
+      "....o.o.o.o.o...",
+      "...o.o.o.o.o.o.."],
+    clown:[
+      "....oooooooo....",
+      "..ooobbwwbbboo.f",
+      ".obkbbbwwbbbbofo",
+      ".obbbbbwwbbbbbof",
+      ".obbbbbwwbbbboof",
+      "..ooobbwwbbboo.f",
+      "....oooooooo...."],
+    angler:[
+      ".......yy.......",
+      "......y.........",
+      ".....y..oooooo..",
+      "..ooooobbbbbboof",
+      ".obbbbbbbbbbbbof",
+      ".obkbbbbbbbbbbof",
+      ".obwbwbwbbbbbbof",
+      ".obbbbbbbbbbbboo",
+      "..oooooooooooo.."],
+    octo:[
+      "...ooo....ooo...",
+      "..obbo....obbo..",
+      "..obbooooooobbo.",
+      ".obbbbbbbbbbbbbo",
+      ".obbkbbbbbbkbbbo",
+      ".obbbbbllbbbbbbo",
+      ".obbbbbbbbbbbbbo",
+      "..oboboboboboo..",
+      "...o.o.o.o.o...."],
+    ribbon:[
+      "................",
+      "rrrrrrrrrrrrrr..",
+      "oooooooooooooooo",
+      "obkbbbbbbbbbbbbo",
+      "obbllllllllllllo",
+      "oooooooooooooooo",
+      ".....rr..rr..rr."],
+    isopod:[
+      "................",
+      "...ooooooooooo..",
+      "..obbbbbbbbbbbo.",
+      ".obkbbllbllbllbo",
+      ".obbbbbbbbbbbbbo",
+      ".obbllbllbllbbbo",
+      "..oooooooooooooo",
+      "...o.o.o.o.o.o.."],
+    crab:[
+      ".o............o.",
+      ".o..oooooooo..o.",
+      "..ooobbbbbbboo..",
+      ".obbbbkbbbbkbbo.",
+      ".obbbbbbbbbbbbo.",
+      "..oooooooooooo..",
+      ".o.o.o....o.o.o.",
+      "o..o.o....o.o..o"],
+    seahorse:[
+      ".....oooo.......",
+      "....obbbbo......",
+      "..ooobkbbbo.....",
+      "..obbbbbbbo.....",
+      "..oooobbbo......",
+      "......obbbo.....",
+      ".....obbbbo.....",
+      ".....obbbo......",
+      "......oobbo.....",
+      ".......oooo....."],
+    flat:[
+      "................",
+      "................",
+      "...oooooooooo...",
+      ".ofbbbbbbbbbbbbo",
+      "obkbkbbbbbbbbbbo",
+      "obbbbbbbbbbbbbbo",
+      ".obbbbsbbbbsbbo.",
+      "..ooffffffffoo..",
+      "................",
+      "................"],
+    star:[
+      ".......oo.......",
+      "......obbo......",
+      "..oooobbbboooo..",
+      ".obbbbbbbbbbbbo.",
+      "..obbkbbbbkbbo..",
+      "...obbbbbbbbo...",
+      "..obbbooobbbbo..",
+      ".obbbo....obbbo.",
+      ".oooo......oooo."],
+    turtle:[
+      "................",
+      "......oooooo....",
+      "....ooggllggoo..",
+      "...oggllggllggo.",
+      "hhoggggggggggo..",
+      "hkhoggggggggggo.",
+      "hhhooooooooooo..",
+      "..fff......fff.."],
+    manta:[
+      "................",
+      "......oo........",
+      "....oobbbboo....",
+      "..ooobbbbbbboo..",
+      ".obkbbbbbbbbbboo",
+      ".oblllllllllbbo.",
+      "..ooobbbbbbboo..",
+      "....oobbbboo....",
+      "......oo........"],
+    shark:[
+      "................",
+      "..........oo....",
+      "......oooobbo..o",
+      "..oooobbbbbbboof",
+      ".obbkbbbbbbbbbof",
+      "oblllllllllllbof",
+      ".ooolllllllloo.f",
+      "...oooooooooo..."],
+    squid:[
+      "................",
+      ".........ooooo..",
+      "......oooobbbbo.",
+      "..ooooobkbbbbbbo",
+      "oooobbbbbbbbbbbo",
+      "ooooobbbbbbbbbbo",
+      ".o.o.ooooooooo..",
+      "o.o.o..........."],
+    whale:[
+      "................",
+      "....oooooooo....",
+      "..ooobbbbbbboo.f",
+      ".obbbbbbbbbbbofo",
+      "obkbbbbbbbbbbbof",
+      "obblllllllllbbbo",
+      ".obllllllllllbo.",
+      "..oooooooooooo.."],
+    tako:[
+      "......oooo......",
+      "....oobbbboo....",
+      "...obbbbbbbbo...",
+      "..obbkbbbbkbbo..",
+      "..obbbbbbbbbbo..",
+      "..obbbbbbbbbbo..",
+      "...ooobbbbooo...",
+      "..obobobobobo...",
+      ".o.o.o.o.o.o.o.."],
+    eel:[
+      "................",
+      "..ooooooo.......",
+      ".obkbbbbboo.....",
+      ".oblllbbbbboo...",
+      "..oooobbbbbboo..",
+      "......oobbbbbboo",
+      "........oobbbbbo",
+      "..........oooooo"],
+    urchin:[
+      "................",
+      ".o..o..oo..o..o.",
+      "..o.oooooooo.o..",
+      "...obbbbbbbbo...",
+      ".oobbkbbbbkbboo.",
+      "..obbbbbbbbbbo..",
+      ".oobbbbbbbbbboo.",
+      "...obbbbbbbbo...",
+      "..o.oooooooo.o..",
+      ".o..o..oo..o..o."],
+    seal:[
+      "................",
+      "................",
+      "....oooooooo....",
+      "..ooobbbbbbboo..",
+      ".obbkbbbbbbbbbo.",
+      ".obbbbbbbbbbbbbo",
+      ".oblllllllllbbbo",
+      "..ooollllllbboof",
+      "....oooooooo..ff",
+      "................"],
+    penguin:[
+      "......oooo......",
+      ".....obbbbo.....",
+      "....yobkbbbo....",
+      ".....obbbbbo....",
+      "....obwwwwbo....",
+      "...obbwwwwwbbo..",
+      "...obbwwwwwbbo..",
+      "....obwwwwwbo...",
+      ".....obbbbbo....",
+      "....yyo..oyy...."],
+    shrimp:[
+      "................",
+      "................",
+      "....ooooooo.....",
+      "..oobkbbbbboo...",
+      ".ooobbbbbbbbboo.",
+      "oo..ooobbbbbo...",
+      "o.o...oooooooo..",
+      "......o.o.o.o..."]
+  };
+
+  /* ================= 魚データ（120しゅ） ================= */
+  const DEFS = [
+    ["iwashi","イワシ","slim",{b:"#8fb4d9",l:"#e3eef9",f:"#5f86b5"},"むれで およぐよ。 いっぱい いるね。"],
+    ["kumanomi","カクレクマノミ","clown",{b:"#f28c28",f:"#d96a10"},"イソギンチャクの なかに すんでいるよ。"],
+    ["nanyouhagi","ナンヨウハギ","round",{b:"#2f6fe0",l:"#7fb0ff",f:"#f6e24a"},"サンゴの まわりを およぐ あおい さかなだよ。"],
+    ["tatsu","タツノオトシゴ","seahorse",{b:"#f2b134"},"とても ゆっくり およぐよ。 おとうさんが あかちゃんを うむんだよ。"],
+    ["tai","タイ","round",{b:"#e8556a",l:"#f7bcc5",f:"#c63a52"},"おいわいの ごはんに よく でる おさかなだよ。"],
+    ["fugu","フグ","puffy",{b:"#f2d15c",l:"#fff3c0",f:"#d9a93a"},"おこると ぷくーっと ふくらむよ。"],
+    ["harisenbon","ハリセンボン","puffy",{b:"#c9a36a",l:"#f0dfb8",f:"#a07c45"},"ふくらむと とげが ぴんと たつよ。"],
+    ["kurage","クラゲ","jelly",{p:"#d8a6f0",l:"#f6e3ff"},"からだの ほとんどが みずで できているよ。"],
+    ["hirame","ヒラメ","flat",{b:"#c8a974",s:"#8a6d3b",f:"#a88a52"},"すなの いろに へんしんして かくれるよ。"],
+    ["hitode","ヒトデ","star",{b:"#ff7a3d"},"うでが きれても また はえてくるよ。"],
+    ["gusoku","ダイオウグソクムシ","isopod",{b:"#9aa3ad",l:"#cfd5db"},"ダンゴムシの なかま。 なにも たべなくても ながく いきられるよ。"],
+    ["mendako","メンダコ","octo",{b:"#f4a9c0",l:"#fde3ea"},"みみみたいな ひれで ふわふわ およぐよ。"],
+    ["tobiuo","トビウオ","slim",{b:"#5aa0d8",l:"#e8f4ff",f:"#9fd0f0"},"おおきな ひれを ひろげて そらを とぶように すべるよ。"],
+    ["umigame","ウミガメ","turtle",{g:"#3f9d4a",l:"#8bd36a",h:"#c8b84a",f:"#c8b84a"},"ひれみたいな あしで じょうずに およぐよ。"],
+    ["kajiki","カジキ","slim",{b:"#2f6fb5",l:"#dfe9f3",f:"#2f6fb5"},"とがった くちで すごく はやく およぐよ。",{c:"#33425a",p:[[0,4],[1,4]]}],
+    ["manta","マンタ","manta",{b:"#3b4a63",l:"#e9edf2"},"おおきな ひれを ひらひらさせて およぐよ。"],
+    ["jinbei","ジンベエザメ","shark",{b:"#3d6fa5",l:"#dce9f5",f:"#3d6fa5"},"せかいで いちばん おおきい さかなだよ。",{c:"#ffffff",p:[[7,4],[10,4],[6,5],[9,5],[11,5]]}],
+    ["shirokujira","シロナガスクジラ","whale",{b:"#3d6fa5",l:"#cfe3f5",f:"#3d6fa5"},"いきものの なかで いちばん おおきいよ。"],
+    ["takaashi","タカアシガニ","crab",{b:"#e2573b"},"せかいで いちばん おおきい カニ。 あしを ひろげると 3メートルいじょう！"],
+    ["ankou","チョウチンアンコウ","angler",{b:"#4a3d66",l:"#7a6aa0",f:"#4a3d66",y:"#ffe14d"},"あたまの ひかりで えものを おびきよせるよ。"],
+    ["daiouika","ダイオウイカ","squid",{b:"#e0504f"},"めが とても おおきい。 ふかい うみに すんでいるよ。"],
+    ["ryuguu","リュウグウノツカイ","ribbon",{b:"#cfd8e3",l:"#f4f8fc",r:"#e63946",o:"#2b3a55"},"とっても ながくて 10メートルを こえる こも いるよ。"],
+    ["aji","アジ","slim",{b:"#7fa4a0",l:"#e6f0ee",f:"#587d78"},"せなかに とげの ある うろこ（ぜいご）が あるよ。"],
+    ["haze","ハゼ","round",{b:"#b59a6a",l:"#e8dcc0",f:"#8f7a4f"},"すなや どろの うえで じっと しているよ。"],
+    ["uni","ウニ","urchin",{b:"#7a3fb0"},"とげで みを まもるよ。 かいそうを たべるよ。"],
+    ["kisu","キス","slim",{b:"#e8d9b8",l:"#fff8e6",f:"#cbb98a"},"すなはまの ちかくに いて、 つりで にんきだよ。"],
+    ["yadokari","ヤドカリ","crab",{b:"#c88b4a"},"かいがらを おうちに して、 おおきくなると ひっこすよ。",{c:"#8a5a2a",p:[[7,4],[8,4],[9,4],[10,4]]}],
+    ["umitanago","ウミタナゴ","round",{b:"#9aa7b0",l:"#e6ecef",f:"#6f7e89"},"あかちゃんを うむ ふしぎな さかなだよ。"],
+    ["buri","ブリ","slim",{b:"#5f7f8f",l:"#e8eef0",f:"#b8a23a"},"おおきくなると なまえが かわる しゅっせうおだよ。"],
+    ["zuwai","ズワイガニ","crab",{b:"#e8663a"},"ふゆの にほんかいの ごちそう。 あしが ながいよ。"],
+    ["hotaruika","ホタルイカ","squid",{b:"#6fb3e8"},"からだが ひかるよ。 とやまわんが ゆうめいだよ。",{c:"#9ffcff",p:[[8,5],[10,5],[12,4]]}],
+    ["saba","サバ","slim",{b:"#4f8fa0",l:"#e3eef0",f:"#2f5f70"},"せなかに しまもようが あって、 はやく およぐよ。",{c:"#1f3a5a",p:[[6,3],[8,3],[10,3],[7,4]]}],
+    ["anko","アンコウ","angler",{b:"#8a6a4a",l:"#b79a74",f:"#8a6a4a",y:"#ffd88a"},"うみの そこで じっとして、 あたまの ひれで えものを さそうよ。"],
+    ["madako","マダコ","tako",{b:"#e0785a"},"いろを かえて、 まわりに まぎれこむよ。"],
+    ["nodoguro","ノドグロ","round",{b:"#d8453a",l:"#f6a89f",f:"#a62b22"},"のどの おくが くろいから ノドグロ。 とても おいしいよ。"],
+    ["utsubo","ウツボ","eel",{b:"#6b7a3a",l:"#e0d28a"},"あなに かくれて、 するどい はで えものを つかまえるよ。"],
+    ["tsunodashi","ツノダシ","round",{b:"#f6e75a",l:"#fff6b0",f:"#222222"},"せびれが つのみたいに ながく のびているよ。",{c:"#222222",p:[[7,3],[7,4],[7,5],[7,6],[10,3],[10,4],[10,5]]}],
+    ["sake","サケ","slim",{b:"#c7ced6",l:"#f1d8d0",f:"#8b97a4"},"かわで うまれて うみで そだち、 また かわに もどるよ。"],
+    ["tarabagani","タラバガニ","crab",{b:"#d9482f"},"おおきな カニ。 じつは ヤドカリの なかまだよ。"],
+    ["nishin","ニシン","slim",{b:"#7e97ad",l:"#e8f0f5",f:"#5b7690"},"さむい うみで おおきな むれを つくるよ。"],
+    ["mizudako","ミズダコ","tako",{b:"#c4553f"},"せかいで いちばん おおきい タコだよ。"],
+    ["tara","タラ","round",{b:"#a89f86",l:"#efe9d6",f:"#7d745c"},"おおきな くちで、 なんでも ぱくっと たべるよ。"],
+    ["gomafu","ゴマフアザラシ","seal",{b:"#9aa5b1",l:"#e8edf2",f:"#6b7787"},"ごまみたいな もようが あるよ。",{c:"#55606b",p:[[6,4],[9,5],[11,4],[8,3]]}],
+    ["hokke","ホッケ","slim",{b:"#9aa07a",l:"#e3e6cf",f:"#6f754f"},"さむい うみの さかな。 ひらきに して たべるよ。"],
+    ["surumeika","スルメイカ","squid",{b:"#e8a27a"},"みずを ふいて ジェットのように すすむよ。"],
+    ["karei","カレイ","flat",{b:"#b79a6a",s:"#6f5532",f:"#947a4e"},"からだが ひらたくて、 めは みぎがわに あるよ。"],
+    ["minku","ミンククジラ","whale",{b:"#5d7287",l:"#e0e8ef",f:"#5d7287"},"ちいさめの ひげクジラ。 おおきな くちで えさを すくうよ。"],
+    ["kotei","コウテイペンギン","penguin",{b:"#2b2f3a",y:"#f2a33a"},"ペンギンで いちばん おおきい。 おとうさんが たまごを あたためるよ。",{c:"#f2c94c",p:[[7,3],[8,3],[9,3]]}],
+    ["shachi","シャチ","whale",{b:"#1d232b",l:"#ffffff",f:"#1d232b"},"ほんとうは イルカの なかま。 むれで かりを するよ。",{c:"#ffffff",p:[[4,4],[5,4]]}],
+    ["adelie","アデリーペンギン","penguin",{b:"#20272f",y:"#f2a33a"},"なんきょくの ちいさな ペンギン。 こいしで すを つくるよ。",{c:"#ffffff",p:[[6,2],[8,2]]}],
+    ["hyoazarashi","ヒョウアザラシ","seal",{b:"#7d8791",l:"#e9edf0",f:"#59626c"},"ひょうみたいな もようが あるよ。 ペンギンも たべるよ。",{c:"#3d454e",p:[[6,4],[9,5],[11,4],[8,3]]}],
+    ["hokkyokudara","ホッキョクダラ","round",{b:"#6e8fa8",l:"#d6e6f0",f:"#4c6c85"},"こおりの したで くらす ちいさな タラだよ。"],
+    ["ikkaku","イッカク","whale",{b:"#8d9aa8",l:"#e8edf2",f:"#8d9aa8"},"くちの まえに ながい きばが のびているよ。",{c:"#f2e8c8",p:[[0,5],[1,5]]}],
+    ["koriuo","コオリウオ","slim",{b:"#cfeaf5",l:"#ffffff",f:"#9fcfe5"},"ちが とうめいな ふしぎな さかなだよ。"],
+    ["shiroiruka","シロイルカ","whale",{b:"#f2f5f8",l:"#ffffff",f:"#dfe6ee"},"しろい からだで、 いろんな こえで なくよ。"],
+    ["okiami","ナンキョクオキアミ","shrimp",{b:"#ff8a65"},"ちいさな エビの なかま。 クジラの たいせつな ごはんだよ。"],
+    ["houraieso","ホウライエソ","slim",{b:"#1f3d3a",l:"#7fe0c8",f:"#1f3d3a"},"するどい はを もつよ。 ひかって えものを さそうよ。",{c:"#ffffff",p:[[1,4],[1,5]]}],
+    ["mitsukuri","ミツクリザメ","shark",{b:"#d9a3b0",l:"#f4dfe4",f:"#d9a3b0"},"ながく のびる はなと くちで えものを つかまえるよ。",{c:"#d9a3b0",p:[[0,5],[0,4]]}],
+    ["demenigisu","デメニギス","round",{b:"#4f6b6d",l:"#a8c9c9",f:"#4f6b6d"},"あたまが とうめいで、 なかに めが あるよ。",{c:"#bfe6f0",p:[[5,2],[6,2],[7,2],[5,3]]}],
+    ["shiirakansu","シーラカンス","round",{b:"#33507a",l:"#6f93c0",f:"#33507a"},"むかしから すがたが かわらない 「いきた かせき」だよ。",{c:"#dde8f5",p:[[6,3],[9,3],[7,4],[10,5],[6,6]]}],
+    /* ---- あさい うみ ---- */
+    ["mebaru","メバル","round",{b:"#8a6f5a",l:"#e0cdb4",f:"#5e4a3a"},"めが おおきくて、 いわの あいだに かくれているよ。"],
+    ["kasago","カサゴ","round",{b:"#d9663a",l:"#f4b898",f:"#a8421f"},"ひれに とげが あるよ。 いわの かげで じっと まっているよ。",{c:"#8a2a12",p:[[6,3],[9,3],[8,4],[11,4]]}],
+    ["kouika","コウイカ","squid",{b:"#c9a27a"},"からだの なかに かたい ほねが あるよ。 すみも はくよ。"],
+    ["bora","ボラ","slim",{b:"#8f9fa8",l:"#eef2f4",f:"#5f6f78"},"ジャンプが とくいな さかな。 かわの ちかくにも くるよ。"],
+    ["anago","アナゴ","eel",{b:"#8a8a6a",l:"#e0dcb8"},"ひるは すなに もぐって、 よるに でてくるよ。"],
+    ["iseebi","イセエビ","shrimp",{b:"#c0392b"},"ながい ひげと かたい からだ。 いわの すきまに かくれているよ。"],
+    ["minokasago","ミノカサゴ","slim",{b:"#c8452f",l:"#f5e0d0",f:"#8a2a1a"},"ひれが ひらひら きれいだけど、 どくの とげが あるよ。 さわらないでね。",{c:"#fff1e0",p:[[5,3],[7,3],[9,3],[6,4],[8,4],[10,4]]}],
+    ["kabutogani","カブトガニ","isopod",{b:"#6b5a4a",l:"#a8967e"},"ずっと むかしから すがたが ほとんど かわらない、 いきた かせきだよ。"],
+    ["hakofugu","ハコフグ","puffy",{b:"#f4d23a",l:"#fff3b0",f:"#d9a93a"},"はこみたいに かたい からだ。 こどもは きいろに くろい てんが あるよ。",{c:"#222222",p:[[6,3],[9,3],[7,5],[10,5]]}],
+    ["kaeruanko","カエルアンコウ","angler",{b:"#e8923a",f:"#e8923a",y:"#ffd0f0",w:"#ffffff"},"ひれで てくてく あるいて、 じっと えものを まつよ。"],
+    /* ---- にほんかい ---- */
+    ["suzuki","スズキ","slim",{b:"#9fb0bd",l:"#f1f5f8",f:"#6f8396"},"おおきく なると なまえが かわる しゅっせうお。 かわにも くるよ。"],
+    ["isaki","イサキ","round",{b:"#a89a6a",l:"#efe6c8",f:"#7c6f45"},"ちいさい ときは しまもようが あって、 うりぼうと よばれるよ。"],
+    ["kawahagi","カワハギ","round",{b:"#b8b08a",l:"#ebe6cc",f:"#8a825c"},"かわを はいで たべる ことから ついた なまえだよ。",{c:"#5e5a3a",p:[[6,3],[8,3],[10,3],[7,5],[9,5]]}],
+    ["hatahata","ハタハタ","slim",{b:"#b8a98a",l:"#f3ecdc",f:"#8c7d5e"},"ふゆの うみで たまごを うむよ。 うろこが ないよ。",{c:"#6e5f44",p:[[6,3],[8,3],[10,3],[7,4],[9,4]]}],
+    ["hiramasa","ヒラマサ","slim",{b:"#5e8aa0",l:"#eef3f5",f:"#d6c23a"},"ブリに にているけど、 すこし ちからもち。 はやく およぐよ。"],
+    ["shiroebi","シロエビ","shrimp",{b:"#f6d3d8"},"とやまわんの ほうせきと よばれるよ。 すきとおった からだだよ。"],
+    ["benizuwai","ベニズワイガニ","crab",{b:"#d4202f"},"ズワイガニより ふかい うみに すむ、 まっかな カニだよ。"],
+    ["kuromaguro","クロマグロ","slim",{b:"#27406b",l:"#d8e2ee",f:"#27406b"},"おおきな ものは 300キロを こえるよ。 ずっと およぎ つづけるよ。"],
+    ["bandouiruka","バンドウイルカ","whale",{b:"#7a8fa3",l:"#e8eef3",f:"#7a8fa3"},"あたまが よくて、 ジャンプや ショーが とくいだよ。"],
+    ["akamanbou","アカマンボウ","round",{b:"#d8383a",l:"#f2a3a0",f:"#b02226"},"からだが ぽかぽか あたたかい、 ふしぎな さかなだよ。",{c:"#fff4e8",p:[[6,3],[8,3],[10,3],[7,4],[9,4],[11,4]]}],
+    /* ---- あたたかい うみ ---- */
+    ["rurisuzume","ルリスズメダイ","round",{b:"#2a7de1",l:"#8cc0ff",f:"#1a56b0"},"るりいろの きれいな さかな。 サンゴの まわりで むれるよ。"],
+    ["chouchouuo","チョウチョウウオ","round",{b:"#fbe65a",l:"#fffbe0",f:"#d9b82a"},"ちょうちょみたいに ひらひら およぐよ。 サンゴの そばに いるよ。",{c:"#333333",p:[[5,3],[5,4],[5,5],[9,3],[9,4],[9,5]]}],
+    ["budai","ブダイ","round",{b:"#3fa89a",l:"#a8e0d0",f:"#2a7a8a"},"かたい はで サンゴを かじるよ。 よるは ねぶくろを つくって ねるよ。"],
+    ["murasamemongara","ムラサメモンガラ","round",{b:"#5a7aa8",l:"#c8d8ec",f:"#2f4a78"},"ピカソの えみたいな、 ふしぎな もようだよ。",{c:"#f2e45a",p:[[6,3],[8,3],[10,3],[7,5],[9,5],[11,5]]}],
+    ["shiira","シイラ","slim",{b:"#4fbf6a",l:"#f6e86a",f:"#e8c83a"},"ぴょんぴょん ジャンプして およぐよ。 おすは おでこが ぽこっと でているよ。"],
+    ["naporeon","ナポレオンフィッシュ","round",{b:"#2f9aa8",l:"#a8e0e0",f:"#1f6e80"},"おでこが ぽこっと でて、 ぼうしみたい。 ナポレオンと よばれるよ。"],
+    ["shumokuzame","シュモクザメ","shark",{b:"#6b7f93",l:"#e6edf2",f:"#6b7f93"},"あたまが ハンマーの かたち。 よこに ひろくて よく みえるよ。",{c:"#6b7f93",p:[[1,3],[2,3],[1,4],[2,4],[1,5],[1,6],[2,6],[1,7],[2,7]]}],
+    ["jugon","ジュゴン","seal",{b:"#9a8f80",l:"#d8d0c2",f:"#7a7060"},"うみの そうを たべる、 やさしい いきものだよ。"],
+    ["taimai","タイマイ","turtle",{g:"#b8862f",l:"#e8c36a",h:"#7a5a1f",f:"#c8a850"},"きれいな もようの こうら。 サンゴの あいだで カイメンを たべるよ。"],
+    ["bashokajiki","バショウカジキ","slim",{b:"#2f6fb5",l:"#dfe9f3",f:"#2f6fb5"},"せびれが おおきな はたみたい。 すごく はやく およぐよ。",{c:"#3a8fe0",p:[[5,1],[6,1],[7,1],[8,1],[9,1],[10,1],[6,2],[7,2],[8,2],[9,2],[0,4],[1,4]]}],
+    /* ---- さむい うみ ---- */
+    ["shishamo","シシャモ","slim",{b:"#c8b89a",l:"#f6efe0",f:"#9a8a6a"},"ほっかいどうの かわに のぼって たまごを うむよ。"],
+    ["kinki","キンキ","round",{b:"#e0403a",l:"#f6a89f",f:"#b0261f"},"まっかな からだに おおきな め。 ふかい うみに いるよ。"],
+    ["ainame","アイナメ","round",{b:"#8a7a3a",l:"#d8cc8a",f:"#5e5220"},"いわの あいだに すんで、 おとうさんが たまごを まもるよ。",{c:"#d8b84a",p:[[6,3],[9,3],[7,5],[10,5]]}],
+    ["sukeotara","スケトウダラ","round",{b:"#a8a086",l:"#ece6d2",f:"#7a7258"},"たらこや かまぼこの もとに なるよ。"],
+    ["sakuramasu","サクラマス","slim",{b:"#a8b8c8",l:"#f4d8d8",f:"#7a8ea4"},"さくらの ころに かわへ のぼるよ。 からだが ピンクっぽく なるよ。",{c:"#e88aa8",p:[[6,4],[8,4],[10,4]]}],
+    ["rakko","ラッコ","seal",{b:"#7a5a3a",l:"#d8c0a0",f:"#5a3f26"},"おなかの うえで かいを わって たべるよ。 てを つないで ねるよ。"],
+    ["todo","トド","seal",{b:"#8a6a48",l:"#c8aa84",f:"#6a4a2a"},"あしかの なかまで いちばん おおきいよ。 1トンちかく なるよ。"],
+    ["seiuchi","セイウチ","seal",{b:"#a8806a",l:"#e8d0b8",f:"#7a5a46"},"おおきな きばが あって、 こおりに ひっかけて よじのぼるよ。",{c:"#fff4d8",p:[[2,7],[3,7],[2,8],[3,8]]}],
+    ["zatoukujira","ザトウクジラ","whale",{b:"#3d4e63",l:"#d8e0e8",f:"#3d4e63"},"うたうように なくよ。 おおきな ジャンプも するよ。"],
+    ["ookamiuo","オオカミウオ","eel",{b:"#5a6a7a",l:"#b8c4d0"},"おおかみみたいに つよい はを もつよ。 かたい ウニも かみくだくよ。"],
+    /* ---- ほっきょく・なんきょく ---- */
+    ["gentoo","ジェンツーペンギン","penguin",{b:"#232a33",y:"#f28a2a",w:"#ffffff"},"めの うえに しろい もようが あるよ。 およぐのが とても はやいよ。",{c:"#ffffff",p:[[5,1],[10,1]]}],
+    ["iwatobi","イワトビペンギン","penguin",{b:"#232a33",y:"#f2a33a",w:"#ffffff"},"あたまに きいろい かざりが あるよ。 いわを ぴょんぴょん とぶよ。",{c:"#f2e24a",p:[[3,1],[12,1],[4,0],[11,0]]}],
+    ["weddell","ウェッデルアザラシ","seal",{b:"#7a8591",l:"#dfe4e8",f:"#55606c"},"なんきょくの こおりの したに もぐるのが とくいだよ。"],
+    ["hokkyokuiwana","ホッキョクイワナ","slim",{b:"#6a8a7a",l:"#f2a06a",f:"#e8884a"},"とても さむい ところに すむ さかな。 おなかが オレンジいろに なるよ。",{c:"#f8e8d0",p:[[6,3],[8,3],[10,3],[7,4]]}],
+    ["raiyodamashi","ライギョダマシ","slim",{b:"#6a6a7a",l:"#c0c0d0",f:"#4a4a5a"},"ちが こおらない ふしぎな からだ。 なんきょくの うみに すむよ。"],
+    ["ousamapenguin","オウサマペンギン","penguin",{b:"#2a2f3a",y:"#f2a33a",w:"#fbf3e0"},"コウテイペンギンの つぎに おおきいよ。 むねが オレンジいろだよ。",{c:"#f6b040",p:[[6,3],[9,3]]}],
+    ["zouazarashi","ゾウアザラシ","seal",{b:"#8a7a6a",l:"#cdbfae",f:"#6a5a4a"},"はなが ぞうみたいに のびるよ。 すごく ふかく もぐれるよ。",{c:"#8a7a6a",p:[[0,5],[0,6]]}],
+    ["nishiondenzame","ニシオンデンザメ","shark",{b:"#5a6470",l:"#aab4bf",f:"#5a6470"},"ゆっくり およぎ、 なんびゃくねんも いきると いわれるよ。"],
+    ["tategamikurage","タテガミクラゲ","jelly",{p:"#f08a5a",l:"#fbd0b0"},"たてがみみたいな しょくしゅが ながく のびるよ。 せかい いちばん おおきい クラゲの なかまだよ。"],
+    ["hokkyokukujira","ホッキョククジラ","whale",{b:"#2f3a4a",l:"#f2f5f8",f:"#2f3a4a"},"あたまで こおりを わって いきを するよ。 とても ながいきだよ。"],
+    /* ---- ふかい うみ ---- */
+    ["kinmedai","キンメダイ","round",{b:"#e8483a",l:"#f9b8a8",f:"#c02a22"},"きんいろに ひかる おおきな め。 くらい うみでも よく みえるよ。",{c:"#ffd23a",p:[[3,3]]}],
+    ["rabuka","ラブカ","eel",{b:"#6a5648",l:"#b8a590"},"えらの ひだが ひらひらの サメ。 むかしの すがたの ままだよ。"],
+    ["yokozunaiwashi","ヨコヅナイワシ","slim",{b:"#7a6a8a",l:"#d0c6dc",f:"#5a4a6a"},"あたらしく みつかった、 とっても おおきな ふかい うみの さかなだよ。"],
+    ["daiouhouzukiika","ダイオウホウズキイカ","squid",{b:"#a8324a"},"せかいで いちばん おもい イカと いわれるよ。 めが とても おおきい。"],
+    ["onikinme","オニキンメ","round",{b:"#2a2f3a",l:"#5a6270",f:"#1a1f2a"},"ながい きばが あって こわい かおだけど、 ちいさな さかなだよ。",{c:"#f2f2e8",p:[[2,4],[2,5]]}],
+    ["makkoukujira","マッコウクジラ","whale",{b:"#5a6a7a",l:"#d0d8e0",f:"#5a6a7a"},"ふかい うみに もぐって ダイオウイカを たべるよ。 あたまが とても おおきい。"],
+    ["akagutsu","アカグツ","angler",{b:"#e8707a",f:"#e8707a",y:"#ffe8a0",w:"#ffffff"},"あしみたいな ひれで うみの そこを あるくよ。 あたまに つりざおが あるよ。"],
+    ["dumbooctopus","ダンボオクトパス","octo",{b:"#b8c4e8",l:"#e6ecfa"},"ぞうの ダンボの みみみたいな ひれで ふわふわ およぐよ。"],
+    ["hikarikinmedai","ヒカリキンメダイ","round",{b:"#232a38",l:"#3a4458",f:"#232a38"},"めの したが ぴかぴか ひかるよ。 ひかりを ついたり けしたり するよ。",{c:"#9ffcff",p:[[3,4],[4,4]]}],
+    ["megamouth","メガマウスザメ","shark",{b:"#3a4a66",l:"#c0cce0",f:"#3a4a66"},"おおきな くちの めずらしい サメ。 プランクトンを たべるよ。"]
+
+  ];
+  const BASE_PAL = { o:"#1b2a3a", k:"#111111", w:"#ffffff" };
+  // コモン / アンコモン / レア / エピック（でやすさ 63% / 30% / 5% / 2%）
+  const RARITY = [
+    { key:"common",   name:"コモン",     p:.63, speed:1,    color:"#b9c2ca" },
+    { key:"uncommon", name:"アンコモン", p:.30, speed:1.05, color:"#5ee27a" },
+    { key:"rare",     name:"レア",       p:.05, speed:1.2,  color:"#6db8ff" },
+    { key:"epic",     name:"エピック",   p:.02, speed:1.3,  color:"#d9a0ff" }
+  ];
+  const FISH = DEFS.map(d => ({ id:d[0], name:d[1], shape:d[2], pal:d[3], tip:d[4], dots:d[5] || null }));
+  const FISH_BY = {}; FISH.forEach(f => FISH_BY[f.id] = f);
+  // 「コモン・アンコモン・レア・エピック」の じゅんばん。どのレベルで つれるかも さがしておく
+  LEVELS.forEach(lv => {
+    LEVEL_FISH[lv.set][lv.len - 1].forEach((id, i) => {
+      const f = FISH_BY[id]; f.rarity = i; f.rare = (i >= 2); f.lv = lv;
+    });
+  });
+  function buildSprite(f, sil){
+    const c = document.createElement("canvas");
+    c.width = 16; c.height = 10;
+    const g = c.getContext("2d");
+    const pal = Object.assign({}, BASE_PAL, f.pal);
+    const rows = SHAPES[f.shape].map(r => (r + "................").slice(0, 16));
+    const top = Math.floor((10 - rows.length) / 2);
+    rows.forEach((row, y) => {
+      for(let x = 0; x < 16; x++){
+        const ch = row[x];
+        if(ch === ".") continue;
+        g.fillStyle = sil ? "#05080f" : (pal[ch] || "#ff00ff");
+        g.fillRect(x, y + top, 1, 1);
+      }
+    });
+    if(f.dots){
+      g.fillStyle = sil ? "#05080f" : f.dots.c;
+      f.dots.p.forEach(p => g.fillRect(p[0], p[1], 1, 1));
+    }
+    return c;
+  }
+  FISH.forEach(f => { f.img = buildSprite(f, false); f.sil = buildSprite(f, true); });
+
+  /* ================= セーブ ================= */
+  let save = { counts:{}, total:0, lv:{} };
+  try{
+    const j = JSON.parse(localStorage.getItem("fukaumi_v1"));
+    if(j && j.counts) save = j;
+  }catch(e){}
+  save.lv = save.lv || {}; save.total = save.total || 0; save.last = save.last || 1;
+  if(save.ver !== 2){   // 海の ならびが かわったので、 クリアの きろくも 海ごとに うつす
+    const MV = [0, 3, 1, 2, 4, 5];   // むかしの 海の ばんごう → いまの ばんごう
+    const mv = id => { const n = id - 1; return Math.floor(n / 6) * 6 + MV[n % 6] + 1; };
+    const nl = {}; Object.keys(save.lv).forEach(k => { nl[mv(+k)] = save.lv[k]; });
+    save.lv = nl; save.last = mv(save.last || 1); save.ver = 2;
+  }
+  function store(){ try{ localStorage.setItem("fukaumi_v1", JSON.stringify(save)); }catch(e){} }
+
+  /* ================= 状態 ================= */
+  const $ = s => document.querySelector(s);
+  const cv = $("#c"), ctx = cv.getContext("2d"), stage = $("#stage");
+  let W = 0, H = 0, P = 6, dpr = 1;
+  const S = {
+    mode:"home", paused:false, t:0, level:LEVELS[0], theme:THEMES[0],
+    fishes:[], parts:[], bubbles:[], banners:[], banner:null, flash:0,
+    spawnT:0, round:null, muted:false, lastKbd:"", lock:null
+  };
+
+  function resize(){
+    const r = stage.getBoundingClientRect();
+    W = Math.max(200, r.width); H = Math.max(160, r.height);
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    cv.style.width = W + "px"; cv.style.height = H + "px";
+    P = Math.max(4, Math.round(W / 140));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    if(!S.bubbles.length){
+      for(let i = 0; i < 24; i++) S.bubbles.push({ x:Math.random(), y:Math.random(), s:1 + Math.random() * 1.5, v:.03 + Math.random() * .06 });
+    }
+  }
+  new ResizeObserver(resize).observe(stage);
+  window.addEventListener("resize", resize);
+
+  /* ================= 音 ================= */
+  let AC = null;
+  function initAudio(){
+    try{
+      AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+      if(AC.state === "suspended") AC.resume();
+    }catch(e){}
+  }
+  function beep(freq, dur, type, vol, delay, slideTo){
+    if(S.muted || !AC) return;
+    try{
+      const o = AC.createOscillator(), g = AC.createGain();
+      const t = AC.currentTime + (delay || 0);
+      o.type = type || "square";
+      o.frequency.setValueAtTime(freq, t);
+      if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+      g.gain.setValueAtTime(vol || .06, t);
+      g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+      o.connect(g); g.connect(AC.destination);
+      o.start(t); o.stop(t + dur + .02);
+    }catch(e){}
+  }
+  const sfx = {
+    tick(){ beep(660, .06, "square", .04); },
+    catch(){ beep(500 + Math.random() * 300, .14, "triangle", .1, 0, 1500); beep(700 + Math.random() * 400, .14, "triangle", .08, .09, 1800); },
+    rare(){ [523, 659, 784, 1047, 1319].forEach((f, i) => beep(f, .22, "square", .06, i * .09)); },
+    epic(){ [392, 523, 659, 784, 1047, 1319, 1568, 2093].forEach((f, i) => beep(f, .26, "square", .06, i * .08)); [1047, 1319, 1568, 2093].forEach((f, i) => beep(f, .5, "triangle", .06, .7 + i * .02)); },
+    miss(){ beep(170, .1, "sine", .05, 0, 120); },
+    fresh(){ beep(880, .12, "square", .05); beep(1175, .2, "square", .05, .1); }
+  };
+
+  /* ================= 画面キーボード ================= */
+  const kbd = $("#kbd");
+  KEY_ROWS.forEach((row, i) => {
+    const d = document.createElement("div");
+    d.className = "row";
+    if(i > 0) d.style.marginLeft = (i * 1.6) + "vw";
+    row.split("").forEach(ch => {
+      const k = document.createElement("div");
+      k.className = "k" + ((ch === "F" || ch === "J") ? " bump" : "");
+      k.dataset.k = ch; k.textContent = ch;
+      k.addEventListener("pointerdown", e => { e.preventDefault(); handleKey(ch); });
+      d.appendChild(k);
+    });
+    kbd.appendChild(d);
+  });
+  const keyEl = ch => kbd.querySelector('.k[data-k="' + ch + '"]');
+  function flashKey(ch, cls){
+    const el = keyEl(ch); if(!el) return;
+    el.classList.add(cls);
+    setTimeout(() => el.classList.remove(cls), 180);
+  }
+  function neededKeys(){
+    const swim = S.fishes.filter(o => o.state === "swim");
+    if(S.lock && swim.includes(S.lock)) return [S.lock.word[S.lock.idx]];
+    return swim.map(o => o.word[o.idx]);
+  }
+  function syncKbd(){
+    const act = S.mode === "play" ? neededKeys().sort().join("") : "";
+    if(act === S.lastKbd) return;
+    S.lastKbd = act;
+    kbd.querySelectorAll(".k").forEach(el => el.classList.toggle("on", act.includes(el.dataset.k)));
+  }
+
+  /* ================= HUD ================= */
+  function hud(){
+    const c = S.round ? S.round.count : 0;
+    $("#cnt").textContent = "つった かず " + c + " / " + ROUND_N;
+    $("#lvChip").textContent = "Lv" + S.level.id + " " + S.theme.name + " " + S.level.len + "もじ";
+  }
+
+  /* ================= 出現 ================= */
+  function pickFish(){
+    const list = S.level.fish.map(id => FISH_BY[id]);
+    let r = Math.random();
+    for(let i = 0; i < RARITY.length - 1; i++){
+      if(r < RARITY[i].p) return list[i];
+      r -= RARITY[i].p;
+    }
+    return list[RARITY.length - 1];
+  }
+  function makeWord(){
+    const chars = SETS[S.level.set].chars;
+    let w = "";
+    for(let i = 0; i < S.level.len; i++) w += chars[Math.floor(Math.random() * chars.length)];
+    return w;
+  }
+  function spawn(first){
+    const used = S.fishes.filter(o => o.state === "swim");
+    const avoid = used.map(o => o.word[o.idx]);
+    let word = "", tries = 0;
+    do { word = makeWord(); tries++; } while(avoid.includes(word[0]) && tries < 40);
+    if(avoid.includes(word[0])) return;
+    const f = pickFish();
+    const lanes = [.3, .5, .7];
+    const free = lanes.filter(l => !used.some(o => Math.abs(o.lane - l) < .01 && o.x > W * .5));
+    const cand = free.length ? free : lanes;
+    const lane = cand[Math.floor(Math.random() * cand.length)];
+    const base = W * .07 / (1 + (S.level.len - 1) * .22);
+    S.fishes.push({
+      f, word, idx:0, lane, x:first ? W * .75 : W + 10, y:0, ph:Math.random() * 6,
+      vx:-(base * RARITY[f.rarity].speed * (.9 + Math.random() * .25)),
+      state:"swim", ct:0
+    });
+  }
+
+  /* ================= 入力 ================= */
+  function handleKey(ch){
+    initAudio();
+    if(S.mode !== "play" || S.paused) return;
+    const swim = S.fishes.filter(o => o.state === "swim");
+    let tgt = null;
+    if(S.lock && swim.includes(S.lock) && S.lock.word[S.lock.idx] === ch) tgt = S.lock;
+    if(!tgt) tgt = swim.filter(o => o.word[o.idx] === ch).sort((a, b) => a.x - b.x)[0] || null;
+    if(!tgt){ sfx.miss(); flashKey(ch, "miss"); return; }
+    flashKey(ch, "hit");
+    tgt.idx++;
+    if(tgt.idx >= tgt.word.length){
+      if(S.lock === tgt) S.lock = null;
+      catchFish(tgt);
+    }else{
+      S.lock = tgt; sfx.tick();
+    }
+  }
+  function charOf(e){
+    if(e.code && /^Key[A-Z]$/.test(e.code)) return e.code[3];
+    if(e.code && /^(Digit|Numpad)[0-9]$/.test(e.code)) return e.code.slice(-1);
+    if(/^[a-zA-Z0-9]$/.test(e.key)) return e.key.toUpperCase();
+    return null;
+  }
+  const held = new Set();
+  function markHeld(){
+    document.querySelectorAll("#homeDia .key").forEach(el => el.classList.toggle("down", held.has(el.getAttribute("data-k"))));
+    if(S.mode === "ready" && held.has("F") && held.has("J")){ held.clear(); startLevel(S.pendingId); }
+  }
+  window.addEventListener("keydown", e => {
+    if(e.metaKey || e.ctrlKey || e.altKey) return;
+    if(e.key === "Escape"){ closeDex(); return; }
+    const dexOpen = $("#ovDex").classList.contains("show");
+    const ch = charOf(e);
+    if(S.mode === "ready"){
+      e.preventDefault();
+      if(ch === "F" || ch === "J"){ held.add(ch); markHeld(); }
+      return;
+    }
+    if(S.mode === "home" || S.mode === "result"){
+      if(!dexOpen && !e.repeat && (e.key === "Enter" || e.key === " ")){
+        e.preventDefault(); initAudio();
+        goReady(S.mode === "result" ? S.level.id : save.last);
+      }
+      return;
+    }
+    if(e.key === " ") e.preventDefault();
+    if(e.repeat) return;
+    if(ch) handleKey(ch);
+  });
+  window.addEventListener("keyup", e => {
+    const ch = charOf(e);
+    if(ch){ held.delete(ch); if(S.mode === "ready") markHeld(); }
+  });
+  window.addEventListener("blur", () => { held.clear(); markHeld(); });
+
+  /* ================= つり ================= */
+  const BURST_N = [12, 18, 36, 64], BURST_V = [100, 110, 160, 210];
+  const BURST_COL = [
+    ["#b6f23c", "#7ee02b", "#d8ff7a"],
+    ["#5ee27a", "#b6f23c", "#d8ff7a", "#ffffff"],
+    ["#6db8ff", "#fff3a8", "#7fe9ff", "#ffffff"],
+    ["#d9a0ff", "#ff8ad8", "#ffe066", "#7fe9ff", "#ffffff"]
+  ];
+  function burst(x, y, rarity){
+    const n = BURST_N[rarity];
+    for(let i = 0; i < n; i++){
+      const a = Math.random() * Math.PI * 2, sp = BURST_V[rarity] * (.4 + Math.random());
+      const cols = BURST_COL[rarity];
+      S.parts.push({ x, y, vx:Math.cos(a) * sp, vy:Math.sin(a) * sp - 40, life:0, max:.7 + Math.random() * .6, c:cols[Math.floor(Math.random() * cols.length)], s:P * (.5 + Math.random() * .7) });
+    }
+  }
+  function catchFish(o){
+    o.state = "caught"; o.ct = 0; o.y0 = o.y;
+    burst(o.x + 8 * P, o.y + 5 * P, o.f.rarity);
+    o.f.rarity >= 3 ? sfx.epic() : o.f.rarity === 2 ? sfx.rare() : sfx.catch();
+    if(o.f.rarity >= 2) S.flash = 1;
+  }
+  function pushBanner(text, sub, color, dur){ S.banners.push({ text, sub, color:color || "#ffffff", dur:dur || 1.9, t:0 }); }
+  function record(o){
+    const f = o.f, r = S.round;
+    const first = !(save.counts[f.id] > 0);
+    save.counts[f.id] = (save.counts[f.id] || 0) + 1;
+    save.total++;
+    r.count++;
+    const e = r.list.find(x => x.f === f);
+    if(e) e.n++; else r.list.push({ f, n:1, isNew:first });
+    if(f.rarity >= 3) pushBanner("エピック！！ " + f.name, "ものすごく めずらしい おさかな！", RARITY[3].color, 3.2);
+    else if(f.rarity === 2) pushBanner("レア！ " + f.name, "めずらしい おさかな！", RARITY[2].color, 2.4);
+    else if(first){ pushBanner("あたらしい！ " + f.name, "ずかんに のったよ", "#b6f23c"); sfx.fresh(); }
+    if(r.count >= ROUND_N){
+      save.lv[S.level.id] = (save.lv[S.level.id] || 0) + 1;
+      S.mode = "ending"; setTimeout(endRound, 1500);
+    }
+    store();
+  }
+
+  /* ================= 画面の切りかえ ================= */
+  function hideAll(){ document.querySelectorAll(".ov").forEach(el => el.classList.remove("show")); }
+  function startLevel(id){
+    const lv = LEVELS[Math.max(0, Math.min(LEVELS.length - 1, id - 1))];
+    hideAll(); held.clear();
+    S.level = lv; S.theme = THEMES[lv.set]; save.last = lv.id; store();
+    S.mode = "play"; S.paused = false;
+    S.round = { count:0, list:[] };
+    S.fishes = []; S.parts = []; S.banners = []; S.banner = null; S.lastKbd = ""; S.lock = null;
+    S.spawnT = 1.4;
+    spawn(true);
+    pushBanner("Lv" + lv.id + "  " + S.theme.name, lv.len + "もじ ・ " + SETS[lv.set].label.replace("\n", ""), "#9fc4ff", 1.8);
+    hud();
+  }
+  function goReady(id){
+    const lv = LEVELS[Math.max(0, Math.min(LEVELS.length - 1, id - 1))];
+    S.pendingId = lv.id; S.level = lv; S.theme = THEMES[lv.set];
+    S.mode = "ready"; S.paused = false; S.fishes = []; S.lock = null; S.round = null;
+    S.banners = []; S.banner = null; S.lastKbd = ""; syncKbd();
+    held.clear(); markHeld();
+    $("#rdTitle").textContent = "Lv" + lv.id + "  " + S.theme.name + "  " + lv.len + "もじ";
+    hideAll(); $("#ovReady").classList.add("show");
+    hud();
+  }
+  const FING_COL = { p:"#f7b4c8", r:"#f9c58a", m:"#f9e38a", il:"#b8e08a", ir:"#a9d4f5" };
+  function buildDiagram(){
+    const d = $("#homeDia"); d.innerHTML = "";
+    const wrap = document.createElement("div"); wrap.className = "hpwrap";
+    const img = document.createElement("img");
+    img.alt = "ホームポジションの イラスト。 ひだりの ひとさしゆびが F、 みぎの ひとさしゆびが J に のっている";
+    img.draggable = false;
+    img.src = "data:image/webp;base64,UklGRppeAABXRUJQVlA4WAoAAAAQAAAAeAIA+AAAQUxQSH8AAAABX0CQbZs6QhFm8oiICUcSSts2YNT+f/lEBRH9nwCo8jdwHihoJKl5ifhFA0ECCr44eAv0jQiFbds2zOy4pMrMRRH8D/yH//Af/sN/+A//4T/8h//wH/7Df/gP/z1W8F/uPBvv2uaOb7w2cu4Oc6fr1AmfOy3n7qPO3YPRxVEAAFZQOCD0XQAAUEMBnQEqeQL5AD4pEodCoaEJVD8UDAFCWNuxLKlaHKCpjWFES/3i4vsl5Y/H/Mr2ruXe/r3j+I/Zvxcfzeyv4H/d+Xfzn/zf8F+V3zT/2v/l/znvG/vH+Z/8nuH/1T+5/sr/l/bj9aX7zfkB8F/6Z/l/2b/7Xw4/8L92Pd3/W/+J7BX9M/yf/29sb1af8d6m39C/83p3fu98Rv9m/7n7of//3k//vmxnpD87v2v5T/3HyPfcP5P8nf8D/5P9l8qP+51En+l6Ify/78fgf7v+2X+K/cT6G/4X5jelf0D/0fUL/Mf6T/h/yg/LHmZJ1/UU9m/rH+f/xP7d/4b9yfbl/x/zZ94v1L/E/7n3Af41/Qv8f/Y/3D/uf/7+wP9n41X3T/ifs/8A38k/sv/M/yH+d/bn6c/7n/wf579x/+f///i1+ff5n/qf6D98f839h/8t/rP+2/v/+h/7H+c////w8nnozfvYXsKEXsuvQwXPt0m2Ve8cjFsMD9ETMklcjivEcVhJBJnBYBVjIpJiEjTzQoGappgFuFXgZdDwf2zYrsFX4cTNklFV7do1r6H8SMuwzll9xrS1lbL1FntVzQxfXlT3xH+3QkLDMGf/qKXMFspJdOC1jMQpLmKhTM4dK/RSBJ6t7/ChSXMPFgdxpL593EXtgvuF8w4GUR5mF9lxt7KE7dmc5fppYt+XO+3GGnshI+UqthZxlmZxrP12TPHjjspNScwE/5Iz7N24XUsVzCoFe+YsdvGjE/ixfVlePk21HLzumbsQ2tWrU2NhTUMexiLM4OzlnwGOs0ny56svVBy8cldfuZOZK1o2VWkCRpnM/0mm+xU19t8m0jKjapoucdySvFTAOUhWLHcE6RB8l5NKTdNh9XHqFVSHdavPqazJId4nApNdp2ecFV4zs4ZXqGolDQ0ZRAfJ99AmRaB+sTaJKkuqsYz27wkdINQpUVrQWDOQ9/9IllXyPD4/Nj2KexMVOs/KsGs0e9IB7kWZgEABD8cNihYEfpOjpiUIpKl0Vp5PuCLLHaRmGCCzm4izmQQ1r6IPVfWH6eQdhrNxsc2/sRQR8gBUvGbQVrG4RtbBLYKYfZROHFiZIsmB78AnrN6xrO0+WweBsUIgAJktfs32uYmQt+LXn2gcY6zovK0AIoAurbqQSVbx8Afje0RLfG6u++JhRU+TkY332rRtk0+WN+2pLE3Jp7KWVm0JBEmqs8PjBygQYpFLSP8zrD0ozxt7mwaKPP9ZXWX9yFbK1TBIfdP6fi5rO9cP/tv64Y4DGUW5YuWCZlF+tvkahON3XxfwE+1s63r5xc9idgyA+shCQQXqe2amoAeCsMoYmyffZ1bF4MtyBz1VhMXyeDawM7ARJx1t/wKZm7llpSzCMgrVZCTOf142ccEjlgfDSiUErCSMCB3GRmUQvXp0d6UCdkAcH8YQC2tnu7ywtS9/2lWXuL0G8WMiUKMi4Bi3cehWO3sXtTwysPIEwB5I7xTMWHD+R9SIoy+GDgZpYIEvGnIcz6Pu2fUPlsBl9zn2cisrqsT6bBIHKtDgPPEi0Wb2Iu2yklld6iF1qLCIvbstMjDWiOZEb66P7WBbmhZJs34RCnQah/Zx76kwt8PIz67JgnAhpWdcu3jO+mmIhOZes5cGzsGFqKcxyPYiyWxqNW+l0NLORJc2Wtqkv5rlxOBV5xt8uw4p7xx4NUyGCUHCOjxUDzaGEMRXomehatyvSjD7GbsjxQMsnbhMHr2PYxvNG2jwnymLMRbMIFzIIkF70ljqTTj4z1hkRznOJelNtESk4xQ/nccEWXaxiURLkh6CRVqWAT5E4RjYQu9PNqecD1j/x6abDrSYklntWNZBwXzb6QB4zEuTZxlzSOk0u6IVvM1st+Rn5I+vvuwSAM2VCLCe8eLemnfwPokXzpLrvcZ0LHLJJUr+s9WbY+yfy0uWQJZg14VliHHO32E03aqpJWEnn30UESnDiKEY4VrsnT+lMukvuQqiolqSketyp7NaL/VdrkFQ7jXprpVe+DitsTq5/qFirEFhrpCthkUuVLF9EMgvpCj5ONT2lwXiqKm6JtEQEpWE8V/md5uUrYlslfkqo1Gl5WqzWjU0mhJtmhnTU3se9bnM8d9XhWOrjFmaIoFBzCWgoPEHEHIDmLE7yh+kzf/Kb9M6e0eBWZUmF7tBYsPh2mMjqnejsiY2CrE88tUT7AkvaXNQulHg8ZOHblUo9tO5fynz2Gbl8ONz9yrBfgGAYuXaVn9U7yFf9RBC1ZWj3tDgMqH4NfeIjPQx3eHXZfYxrZCjplfO0B72r/YZLEt/tnhn+mlsq0T5ALtyCFRGXig0u1CcSsIyiL1xn4fy6+fkkXp7IwpjWppYf1RM7x4borff3AbHgZ05LWFUpoVBNbkKsbKighoIJXVBMcYT/D2Kc+B5lmNGzTc/4uu4PwToBfURiGhuEdD8oUkLHTPXVuyHqHXWG52tIp7LkObgMcrwmMSdAEYNPNug+w/c0nsyb4Vt7wB5ST756TWtL2UuxIH4Bk8MicPJkGFBQUdXvrZ64gQeTxSvbO5LVaroTS/zECj5mRWNHlKtNbnHb1c8fhtRiGy62qZtTXrG0OLqvzsHBIWdGG9p7PjWfk6dgPzL88KCwHYmR227OUPYJ6ifvlNxh7Hg9be9Mpftfy0qgM4yU3a40WU46tLjuZuNKyht8wr2FPERnNCBsvU7Zvfc0Q4EQcM91/K69Ep4bwxeNqArnzjBfYm3fivGEalGDPU6opRUbkkRsvLUmshYU9RtdkKL5toQ+SrFWVWkf5+apamMVODK/4HLB738Wdj+HeZmPopZBsKCgxQ0x7L2SmB+mfMyPiCNPrTgkXd2UVcMOeCuIuGGQ0gw0QSWvyFZKCWqJLoHMn1/qS+EtbtptetSAzoIZySGMLMRC/IG5eWgVyjhm54cXq9jUl6Kb9cVXU7iuIyqPyEkx8CYTAObhlAAH29pXwc8ixt3zwdwDNqZvjbzdS6pYTGahn7lveasRAp3F8E21jmbJHmJoQ1sEiqOQhHVK87bit3gSNqxgyPAU5CfqnTKTgAT+YsSkYGsCD7xviyPZSObUMHPB8e/fiPDM4Uij1UdePxu9RN93sihN4ljBT6iqHj7oEJHVyqtGEZyUjnVbjrKkj5OA8nCYQj0ZNXiaXcIyDfB6RUpYgVEnW0gk2/cH0dVJoWP7EO2ImaHG7lq9IcYHzc0KKaQzVV1iY6S9psCBW+GfjFGqTa1+MVQCu2kMOQJGeraUhdol2nuqW84CUl/4+IH19lTQFhLYubhKuj9cRFx+VwGmWknzhX1RheBb6cf6+klx3xlApMjd/J6pT0sz93W+H84NtsIJYTjJgeTO+TNH+N77/R1IrddqXslMwbu70vGrU6toXvCYqHvHhH5RkBL8V0gAzuj8A52HGBhDb7s6Uib/ULcRcXdhriOuzwTk1IuEP1aehsAAP7/84r6jsC/mQZ3EGDOUbxzwX7RHNYPy2HB/F2yaCcuhgPaYP5aXI3neCrdeti5ZZKz+1U9MVVy3OI/e1Tp6t/gY0DZsF7FqI8DmhhtTUHX7T4akDGIYHZ6x5RqVAVt5rVaAFJdT1VV7pble4JZpllsPos4ilVrd8LOLtSVdY3/bvzuNkHcv7OGW7kKL/ITJxkDwgdSDfR+YfJ0scospyqRg+iScU26GUQrJ8lpEmouK15xmmJww0G2wVsEuu2sJ05zZfu3jXx08/eVyP4AwL+nT6JtzX/tBzECXUoCtLzljGqNMa2WQT0+4NGNFxBcM5o/BSk9GBEdPyg0tWWgex2SZTeq4yTuD9pht09EzGTsY+7Qfw7IM9WS9rMTCKyngcKfkDBwavJ9DEdi1ohkWK+UXvZ/8fJUbCp13nOkVRuLbAq8jBvgFQtDQQUuiUqxHsnZhgjEZGW1xrRS3gBuiz+aRXBNlQnUCxpdUpbwmHPGXikHIAvQbnQ8hKneZ29FieXRGKFyTiKT3Eu2dlqbzZrcfP7F1iwVOFD6Dj0B3y/1u1MG5h2SCSN8/hNQnw04TvM4c2jnvjhl0IvBMldXaZjhO1LDPcGdO+DddNc0+rzIGbENNWPi8RgcrcV2cPew+lCLmpkDfVpreSc5JGsOGX9QwzKMBa7lt8Mt+PpzqPqqvknDRStZ3gFYj1RBws4hEuYAcc6KENqs0k6ckijw2aHrcLL+pvIZWI7v/UQrW7lVTNLcAaKe8Q2VgfdRPdWEWGkQuw1VPAZMGWs52FDdyvA756AoAB0VnquueKE/BZ3p8WekEXfp9oXv1nDMQOYXU99bHDB6c1e1uhnBh+7VMfRuv6YZeQq6JikHj+CEVh5yovzU5WcGVsXqqjDd1p8aWfUl3n9+B2i+v9Xdl9NogydnX3kk9orcJD0ISQIbjaFC/UyTenfBcZbPWtou3WFsaHaFMOKA9sKHwdke3hwoBjs9YbJt673kz8mCBs30Z2syXZmGnAnv4bLIPBnXGI4j2Rb5iRsUl3ko3rIXbrORe2SkzTaqPEGL3S5bmSnyoEUQmoIcpqNkbaLrsd4KL1C1WPzeSNyeKqcB21QOiGDk4N34sCv96tgaj6gzUekvcPrbKVlSLRfHFZDch/Lw0X44Rv5CQzkgnVwndiR3HCHXmKGF8WSBh9MWuTXBai5ZAAekVCDujbHdLmyMXUQkzQYppdO6olQUCrLGGLRk37azeTctacV5mUxIeiWuf99sy/EhUN3pwd2UBiI42tylQPp4qJ9FgfDSDmLW+7fNrphjIxtHRy305NoHBjpQC/WTuPpU5L5Va/GV1ju2dm5661XpdtaMBW+LOEwOeK/ctWSfN7LsgwlsxKRZhFEF1x+LjcdXUNAKdOyziEMd9VQdaidfnP6DauaRAd+dZG6Rs1TpCNBxNgcEargG5EV7LQ7JjIcbbedVPX61U3w/p3IHtbzizT0TIUE57bwMME6kKg28KjJJFh6d0odUTyaSTittimcPa48F9hsxtm/pyK5rKcEW0MPknUWnKuJNDbpRg4YKlEYJq8AyIwRIiPBCKEYNNEzNE+Gy5/mbW5RZlPb5w+1iH9bju/R0jukbL7Jy9o8aWOHlIn6bhamZ3FZkHmVICq0xBeqkQibjnEK+AXKgNe/rnVLg/03ZlnpmuYFSvGCxXiPNIOw/QfHLkVRGGjiQ64FjJ4bHXaBrOSt5e9hiJ2+/OQArXl5jE/hGkhyugkxtPZ9fSn6+f5z3NpMuft8E6eo3oDVvPCf9v6A+bruBBvWV/ZJ/uiPQQFHymWgiAdL0J1/t3/E/AaRO86pCj00qXk8Y9V7FcOHA1fFX8TNBaj089/DuFX4C78Oscauv5plK9QyBfmTqfC5wFrmcS+hEtC9No74P8RuqS/s2sjZRROrW/Y/nEKeiwK5UrSr6ipem+1ojPtnfulRiS6oRQd6ZlsBoKACoiFfSjQvIIR11Iz48QBfKU1xYcWcdx/mQ59/Ibh2h0IkwXq+kGllXW0gKNXDKc4GYH+sbg8rowHrmJ2c6Z4fCD6N2HnkiSKvagM/egbRgJ0eCkaGc5F7QtY0nAixgigN4ExEbnO36bmJPoRFjSZRiEDoE1WqvraUKJYTX2mail7Mcxp1VJGm5MEs08cQ4QVVJxA95b8nl5rOaJ+DQmum0rZdqBZYRBIW/W/+os+F7PCG1+GIHRSebnLgHrs98jZnWpu7GYNcxoyoPQMqOPVtIBBxEM1o94fY7FiKnsrqkFP51H6SWSgN0W2wslwWZD5Tds5jCGLaRLr315y6Dwlg2PdSXsNuyWZ9V/f2bmYHgDB128ODr0KF2ci5DvgI+FHtCvm9LJ24BA4D7f/nLhYYXFquuolzqG+O/CCqRFcF0PHHymaDvc++wnHLUuGahknNG5OSX/RdJ3/UaGHrzfs76s3k6S9IpmioxycwuPx/3X9MMWfdSfrLF99p2Ab3QnbKfV1wfXHHQuCwdr4f7yTThv3zk1z/nZ8o9jx6VcH/SmuqyTnG9j1RIok4tJHymPlUTrp6U9uMinFik4OMAmd6vHcvIbzqbLZ6XwOM1Pfcopz1k7A2j3E7cY0XhvL25FAW9i8d/rW+QsDFLOplzVn/Dy5rrATZlkkI4HPsPh/5sFdOhFhnuCQm8JUP1tzFGj/Tc0RIvGg0B2ghojFJ4k3pnLtFj9EuOAD7moB+9DqmBO96hPj853fAAviijeXq0HIH83wPgZ7yQFzS/fvkM+ub3kQWJop6ydS9hLklMmcnQHthUAa4HFp1ZAioSbJanx4n6QiaN1mEcXfwk2Ck6+jN9tVVgFSwTqk78buPLxbesVSPOPPoFNLl69ll1YIZT29ngqDbB0pxUX3bl8zFsRbZRYsY9MjZdp54+lGnDp/zuhyheLcXc3vlS0tVcGK/k1p6V5Ykv+KIn9OMXeziksxbjU8d/5xqv/DTOc2Lutpi/2X1eY1EFu3e5dWPP+ZHGfb0k1HtZEfp707wxptN5O6JRdgMm+iD9G/qnnfNxBI2gfQX3Lpb01jCuFZON7BWWAOvKfxIhoge3XONDb4fvLJ/EbPM4i3k0T8iDFk9/lAk1NEdUNJQPhmFxpHffXDVyxgOhGmfY0kvkEMY41n5/zQlfwlcP3ya2S4L+yHkapqMcIq6mixdqEFZyda//PSZVP1VUdt4SkjD4T4e//HGCwZsbdcFphmwCjQzA33gt0DHlSbGc7nvC1a44255DjXnicxWQXOPMs47hMYQkXRZAoHhPugNGBZHjOmNNdvdPIZFB/YzGMEdlq93WC2H1bdMinto6757IiLuGo64zSpHCAH7m7MPrHbWW/oJTacuCC3PuidPWn8tm5XffSkQM6Nv87PhvkveTCgsKAe6aXM0qszrkiaF/d8XAdjaj5BsbsfxBN2wB/ZBcytt5tQ0cKAjUptdpw62AcHLwbyxuLFTVuLeui8KvKVaeu/PI693Pxrj8N2ZEr/ugWV4QlGquB2o7/8xGwyJv0ML4qsQs2uHF+C/L7x+P0uy3iGTixu2tW8oyeyFNuMLfCxS185P4etyIjsPgMqRIMvbih7b1ao0QhiaswvHaYFYDUeSvVCGlWicA8OQZsPvkjobm2pCFx3BE2XRXiRB3JebDh9Sy4MjIURguZnNjT+QRvliLpPJovi/0imjcAK5GYXYHPoFVG/zYt9WcRf2gyPiA1Mbqu1xUdZBcdOIdCByIU5u7nqbcLmp9uxaA4MEFlNWvh8NI5LMYzBSYmptsP1KPxUvmoxzNMFq7/5SUF/cFAhJmzJwY+5kZCrqQIt/8c4lBaIwcc2iRgxrtZMm/TJbuXI6L8cRFNO1qSR3hUVaFB1sR97I6Jtwkt3bN4Lic5KULvu8iOnE7+jPIdqKBIW7sBZpad1BmGdUiqQXtwpxRfMvswwc6bx/6KDVDGLML/+b6wydtPyQpkVWF8mHDTroek8KeYagjsOkSlHPBuexsXf6fV9rdp1pqtOvUBH+qKRC9xumJ+dEquSF+34hHxA3cs8ywozEe0lQ+Z0yieC1xufXuX0GukXxJAcSoLzughjsdhBGfuBelneAy2cDLYaVYDvgKyQ7DXj3EwAKWEHujGxZLrNqArwaVzKgCg+eZY5BL87Syc5BZ/g38c920WuWmUKvxauhYcO6EGyMbLKlfarJh0+cDh8Z+sA4pVdnhPew5GoEp2w3gn7Qu66vFLnVRGcgL7sC4Ec5wnb+6rwhUaJHria5HC5xkqcDt5saNjcvTI5uSfKl5WxIwGoUTkHJcXdkwDFaLq/ezXtrWUc5XFuiTnDK2u5gTzur+hsg95IMgfgjup9//9BLr8tXPF+8V4VB5xD/9Qg1CtTQv8ZKqPFUJkMMlsUR1hfQ2gH5fZlpDinkg/fFSal9pnbkflpt4MkU27hWcCnZtBBAUZhfQO9SFuG2tiSXb0ktzZoPRH6ElS9PpEva04NrfKdwuNtQs06kFQLTQw5JpAIXnmJxngo82wDymZHxEYAtKkVygo2OfE2lMlJovt0U9r2aGrkkIs0efc5BAqvkNhkte9KCmDIDfQBwk/gMwLGlnHvk9nhMGT39yLSqkXXoTqPQ3eLG45KKiSy30OaaSscRKLal9ll7snq4/7Qk06K0CAAaO8DhBwewdkZ1OxAdDFzyUa+RTNZMM3uFUaHqLStRPeGPof2vM3Dp/IHaJyfOq9ABUEuNzIHcERFUh72ixv8RsJk6dguGfLzAPLJnGGYaBYLwc0BjxJT1i9FKUgkfUt2cxtmd9N1KEDi1mzmB0VBNbmm51GZoudLiC9E8kmeXp9h619IoDIDcumrqi4PK/YWgGrZekXljvQvCe8b6UrQIixxx5kraihABaqiZtu7Zp5Xz48Y3vF7t1+Ps+3HO0LRg/uo/g06MOITtQZvHWNKoZH+A3LaVKU24cXmPVD5sVW88MAHcYWjU3rYdeRGxDIMetdzHXoWP+XCYJXt5Yjq0rBX8BeXTxRFkAYV3TJUwtNycHT5ldgV2sQjelRQIM/WM/ZO2BSyYIbx0oLm09meJ5kWfQt3LtQJzAwNUtVmNMFoPTcFoi+8qa9Td0HArcTsaSiXwQI1dXQlfj2cjQ9QVrXU/BzmpxJT4IIidIrbDorAktR8GjtiN1MTbfUPMXmqQaWdV9Z0A/YCVurgvWrP9b0NO6HQGsg5F5zn5RoIB4SlghCG8hYZRfxvBnHHfBEawjlVtwrsyr/r8HrAdk546NoVj5xsY395WwubTm0kVS3KdZsCmzTSw7lfCnHNi+IMZ/jQIMJ4jLLBbNCu7DKK48DLCgxZKOTReCXwE1b1dkQc9oQ4CyQTTPMv3mExvrF24vogZ28xdSl6DnNF3RxtInpDRv/fNr5Q+wLUKNgIzbHfQn+qqdHAgSd+cm8wTXxAKjoW87WCPeb8ax4Rka6kQSWH9LyH6pdGW7LKlvdLLzQxpQq1Nl6BeEE5hS/FIk4K5POQGTkdM+sjN+mdCB/qZb1y2Lo+aYe9MIBa0cEycv7tvAbk3etUucZRxvw3LyD4+zBSsPGFG4dkDFFMU6/HYWA+N7GrH7R91qeJB8vBOBDX7u53DpXYazEKCC8q5+x3H6qe+tF/00N7Xk0D91Gs7ioYHEFaFv/bL6aGgYVH8BM1OO3rDhakCvuV8vh8/8gN93BE+a6XRiPYak0HYPOQoaMbWRhwo6SgmbCpRtFdudyxdO3RS0VwrwVAVtBmg/KlThwfPsoro/Xl6Xu7YVIN2E0yzR4TdbQ5vcDXFUh9821Tmr3iJJZerxZuZssZw6X2Wfp3vzrriEZTTdpY+xU0gJk6lGJLnMMyny+FD06vLIBKvVM4hZ2/wKUd0Ax8lC9DApWQ0SIRzdT3JJY5WwfjGieRgBsNxxXD6Hnz8ez8adAofyKPahN2WiQYeXE9gCGbg2jS9kGpde8bPR2Xpwu4+4vFqyCEkutmr1mdVwPX2CHSdHLOMBG3CxHVzpvQvlxohqvLG4R+rTGM9w+Pi1g3mSqdua2uXYSaj0ok6fBhI0bat5jHi2jUkNEC7roIPr9XIvZTybFG/ChU9pfy2SNNkfB7Y1fqFOWH4e50/rJY2CErWqg29kwE+wyACBhhcvYV/7NQP/efwU68fKJB6xmj8DKLtGFWb+MT/Yfn6fWnq2o1s0tM6O7EasLRCylASy5F4WhacXn7+4FQWWWN7sEfIh4z/UmugFWEs4g94ABcgPI6OB073+TIN61xRj6igXGpJMt5x+OOiNVgNRE68vFWyH5k7VQsJPu749c4J3P0ZzZHQl18uBI5RjVPmmEo88btnMPjkGRDZyrCoewCRq2h39hu2+1iETkro5QJEXtkWV6qUUdiVKm0ZAd/q54T1L+hoD3WuH/aNqeCu92J4xyartNGY7b1i7uKy0kSC89XgSdg+NrO3YVB2+smfjUvU+tlbSNM2H04xZW2heObkA43cmGvNYawJhQA8nZqBsVT01qWouMYqp6VUkNbRhdd+CretCmdbu9+33yuW8PP0uNn3Ufs2rJYzuDcj3mG3AMpKxAfkUJcIbnkzlin60WjZFSd3HlR59KRkabEI1Hhi1G1Yatox9Tdy/l2fcc4hgYL9n9ZH9yKjCUQvfzJA8DKV90V+5Xlm8Etk/vOeMKKn8o0qrVQ3/3I9cbztHgk0UyWD5UUdnHWba+iPFOgH/kY2dyqKb5O2MnlX2dVqk6V5BvuweevwVw4K63Ys85HfMI+o1CUqvtMpsl049mSIw+XLY54SQmwqBHe4ETX7nKamZTRBvHvt8kqY3U6D0K7olsy1i4ou0YvjY8hBATa/ziLp07ctZGTzLBkGMu918masmlvHyDF0gVl211lTkySAZJ7Fv4sOTbr3uocESN5CFJFA14O14R9Qq6w76RTCWssPpafjzwwZhih/5Rp6TH0xrAFB9k16qcPnAHqklMTncF9C98MHQ+nMrz70ARF0ZdaBXZ2vQ02+6fMQQeXQX6uZI7ujMI4JElBzvssCR3868TxQ8GwMYgyuqMPbxqqu/k+KcdxVtXj0UhzPyhf7odR9SJRX8E1vi+m6RMqd2L35X9FkY5FiKT5Zq05HYdxDV0ij+ZUek+ELthIyJBj7mrhqWxG/R00kSe4rMJYKxK8Rg01sQO9Y52teYHkANaCp1ezgbnwpqHF6XW1y9Z7HfdjGry5dx8xJZwC3CqMLrc+cEhxROttAdL4kxCDjY3NXkmcOYzp4dzhMzkxu47TlE4NqMUzNNo6KQlKAqHLynWUKVps4dICAEwCsuaG6qGo1XUWViZ2PTMhLuUSqhMDLE5Xv+vx7fFma91sVMNGP9+JhNXA9sbyPGlnQ7dt98l/E5W7XYuH3ranEZW6V34cLX9Is4l/p4IR7eGSM7V2WMC+qdxM9yF1WVwP/0cC378qry6Lj1Nn7WtxYgnOeQ0Pwn8puIcx8RlOx3qlPmmJfbAf2jNvUPXA53eLUNesrWUfLf2LRyawtmKj0cya5808ghCScHNZl9JYsfcgdAG7/6m7K+nU5EfJr9Tb3yjFtdNp1WyYCRjwcMNJ1Spdiiic2sYs6Un5x/C+q7m0XHbJfmZ9QhWnVAppZ4QvHDaILw/MvRw6hUOO8j57VNOh9axstSnJNmfcGgwgMeG9WunC3+/NOxFEU0C19VFDq9ts26JO8QjayqgU5nuK+5k1vFN21kdNkX6NG9oky+IqTPkNRXY5OTGCeBoTWfT+J+mRFlnVXtfvTJHmnXOr5ZjFDSl5+lL2a9EPs7hI2ybjOwwSxO2+76sKkTYduD73mK4vCi/3qTC4YeRdSLrcPOETsjGxHM/PuGSQhrscczrwlfkopK5CjZm5cgbEnG/tguHu6XXUE0McAKDoTb7VPo5f/1eEulDvIS3VfvMl1TJ/rbpYJikCJd4Xr8HlFeqypMQnCut9AM1ZTCq8ffz6X+seialjpniG5Tye5JoVj3wYhFJ6F0wLbkDaCV16qXFvyb87xSSB2gRNKgkaANIxC6I6KodyuZxNnmBJvSEclJyBT3N1pP8tq2gfAY1n0O37ESvtnNXVnvr3J/ZWX9dXSc4ItjEnVp3OUz3ZqD9kUxlvmJEDoOePFTVXxEwtOcC/8woRicvHu3imkh/+xkNS5bDDLCWxUce8oO1xDxh3oUU81dZwpzQDpk33ZaKMPr3oqffbGS8PSKxPgdwOtgJ3R2/0tN/7+BVnjPgzTpkDtt/NA7zVD4JAxPsiHPH2bTrD88LtODwDz/5xrgRqFkBkyiqa5qQ+NeoSfgksGIUnLYdHZH5EamXZ82Rp8kAFFma2cNqDKk6trdRjnMssbn2xYuzVr3e9kVKnzKydSWfz6upScRhrIG0LQXYNggPJqhye8NdkVsM1xkxO+0AM66dEaMELfx16xOp8t/g0rhpkc+OT62TbpnZDxDiH0qT6OBsZmRn7NGUmRclmqfBbvxydoQZpeaaGA2hUhPS9DM7OW2B3lQTw/7tL2CtC3RQs/o7qcz/mQ21BPgLVM/VyVwH2ZYk3qzTM6pX5W7M45hSVE05ScxkOxdDMit5+CMYglVmA4GMI9MAsJCF/8PGH0g1X/6cPdph9k5QYyN8U0bdvLYzJr8sMKvVS25ig6QXFPsuZKyERzeY8jpEAOD/vWo+Yf/NZDs0IpFKw3D7JubbI1MgTJ/x2z1u9Kgq6lDZyhmuOAd6cMV2nUvrMy+Q6eiYxRYEq+h8TsSxWr02fKOSRNX2lCyjUgQH12xOXAL+ahn+/Z4HKani4CkNTlLbmkSPapkutAd0816Wg4CTv7+CmQtRL/wtpK0AeNZJ8tMOiJT4qYgogdHKcuVIxGOzfTMhdwY1DOuoeuRLdn6I0fZIBFwqEevjZFmwiecLiwPjMRr0A1KbF/M5jnRPP8rw3Et98oc549w4knu+jkrLkgVGYqkJUblDCqBjGURGM7XCsLsilQTjJuhzcu5/oo0ube13soUBmVJRBtKDYVMFEq1/x+5ub2uRIZ8/u/4Xmzf0Eeq9zj3IH8QxMcs5Oqie3bCqTX+4CX+pYJMcm3QI3BEish3RBdm5ekdE3a9TY9anyIUcsRgnr/B+UzO2InTzSOKIiK8PeyietB6avXvV/eDJxmt72aSrI56vH/mrd/253c+FH6wYVmldvQXOEWJJA26ebFWXZtF4pQzyYFpGtPf8ojQc8sVLH/Wt0fEOZUzVdiuHlheMX/rG24ZwPG+CzeatHo149NxGbkoRF4iHOtHpur5vbkI0U8qkUgs0+gTWnlS0xIAkLdHtVlYO7GN26zdSenOwqvJFmsl4gcrszTwgq7XHnPSdKUdpQdFgHZ1+uHAJrQs/bkQOtw7F7ep8+sZw4p4zbFkn4RQh4Dt9MAd51mo4vBJiDJ9vOaxh9oJcSaVryqB7QY3UtPwRbDNCEi4BzD4HIvXOLu91Xyxg6r4VHr47sew6mHTzrUMSVjrWrYrEJEeU+jh9lmQjaOZry/R97MrNX+Kr2LXvCI07uNMspT3MyQIfKh5RP86He7tIoOWv4x/ysxlLEPUCafXiO1cwIxYO1Hc/cu90f/duSHCfbovz7LJVBdWmQuRzB7WlgIlgqygV03iFvd7lcq0g4ulw4nniH0HW1ggcM4DzpxEcVuIUv2fOb/PNGDpX8Qvn8wP3Bzcs0ngbHb7YBEqzofq1tc66Axx+iEd6J1vjLlMRgrU9AlIeJ8hzbzfyV7PiguoNvySeB9vmlxK66z2GBwsaDVG1PMe1yJkPuLOwkZYroZoPtxsQmIiDCSZthlMSFVSjcSGE4S/Gl4R95owowLZMac7zLWsrkwp1yIZiLwCpIGNCsvd88qyDYpOnU5t0iJON4xcvFCY+Xk8w7m81aKKZmS0HQqTyy3KPiu4hwQycFUGa2xISPqwX75+OW82F7CtaPSWRHV3kng0q21pQvcNsAv59BWCinyKRp3NLRZlzsxqFA3ThIQoBHHzYk02Updle+RvRnu2rAd9N0vxzQ+ScbPENLSngvgVn3MROckifOyT2N49cGxc/qvt4jCZKAdnTwSmZXmssq0D29LNzdnSa6MZy7fCds+jQ0KIRvnfnVuHs1Fp3N7u9Axvcw2vui673GyR26vV/ldjJ0E83jIv0qWOufOU0YZC60VlofqCs9/t65pRALdcS9vrrawD9OO2EY5brvn1Soqa0vylRMdL9X/rU4a5g0X4MlvWv10VfeFTpkWaDlFJNmw5w9S9EA7hf20ZR+KMeevT/qfgADHqI+HDNBoUCgUHWjjPtrZW/iX2i7JypRIU0xh8t8Ig/NzsoL/KKR67FWNLeJ55vUtZEGN62odj7KxVFnrY9RXRYuwjNszX0N3uyirKCuT2a4keoIDo71GRgT8iRJeW5kI3AqdHXFVSvV2DDXBIBWtlZhC5mvNd9ArCpchHUWs7cSW7tnOo1v6zzpDJ8dvhjdBoRzXKg3dDCLyKbIgyQ3Xog0KSfr9Hv3V1O9ITEiUSu1dVm8YRrkZtYKGC1HfQ2yBgRvM6ePyMqcwmj0APyPBgvo3sRpjrR+Zg11uyZmjZn8USZoOXYf74GM7QKGoSMwJs+I1svnrOUGr/cY1YXgCaDUhEpWdl+HqVi39bNqarFZfOnNpEfMCj7OQiHQCTERo7BPlz/tGWszjAj+Fct3xMCx1smo+0r0cfLpvxUSYsNiiUw2tkYCPxTzbh4uBhiZRFDehpIEadrK9d9jHO1Nqzge4bhj0bbA9cT8TfwYx5eXO43Falp4365hNTfEsqaLJBGRukvBywNUXFj6vsiziZ7jtZSY1urR618avMrYt8zesLw3/WVcBpxa7p5ZrNhuhpb3DtxncOilghCx/mW8eeJYi6YuM50Xr8rLMLJuKz/Rtb7WkTfDigR/ytLL1NxU2U41x387L914FG2uYWGeZvGmYiDh4VS9r/4B/M6q0EZG22/ax9VJh2oxddIL1Uy6XB5qwsjohtFToujHUPgwO2UfyWdvseroG9V9PyU6WfFgr//RMxIrevYEx0C/afxvTaoCRWsky4KRawWO/h1hA/NxSN5kdAvhqlbDiEGpCLBjDXYEZNtzq7EIy59/b10G8G22utKkg6anVwXKGvwbV2qbQ1KKg5Qf57FUPrOIvFbBksJAler44mgzSaCYEZNYJG4T5dJKE5s+G1mdJRTLfJSaHPAxBLOIARRjVnNCuJ5VJX9BiDqKYBhxWiI7nguJuMfTQ3PiIv0MsgIHOpm1Ldsn8GBavU+/NXLqB1zJU0YfQgIIJbY76mOqQEX8nT8caFXywxeuRWvbWO4uS2FstVLOAEN0D3nDGA8uWNanS9rv4yjew1tsayAMJAAXHqw5cu87zSS8CR0YoHSauZSQimFGEfYG9zeV0nSM+URS3HQ/Ot+XFo45UEKl8YKZGH4qn/CbtdtalezfZKetPkWAkNz9fq+WhlsGEUTyhfYNNL1lJ8YDWFFEcY39RujD2FjPL27kcQ1eSwJ2tHgSY90vZhWTJDtWYl2xIotBmfhCv0rYzogHmXAfbHqw5TCMQmbOETlr9qKnBNrxEn5XRSvbihQt0LPZZVtcQNJCbXKg/pYUietdZ+a1x/E8pXTnDlOuilifMj4f3tsh4aEabCFZt1HBkPnhy6sVIRfSKFmVWZqb76EkiIm3S1CYQUdG2dmf1HbAsKlVfwh1xTZeGlimOByCO7v0Z/wslzhOFe1uz9GZ4yr+JV2T77HdD56JIF6gst0S80FhK2eMESVTGhioDMbiH6glzYgh23LEUwkuGQ/wXCbg1u9Iy3TSIGrINvZvQIjW/XF3G3M23kHDtF8SmEgKIfOO4YaJoJG1nBTw/eKMOT7PIn3KRkQ0BA4iGlr0umkqtzaVLQcwiq1/at/E3Ee3M6U2bHZpGWhVCTjVHJdnHgGR4nGuVVuTZByMHJHQIphhvaWo4SF+if/ZoZ4NnYjPU17tW703cr10ncSBGoSlQlAmSk6OHKqjyy4kXciMkja94B/D9wt51mAUpGvm6Du2D0TUAVpz6P/GsSB0tD3DCvGbba/vuxo9Ziw3qzGe1PRiDcthLvj+OjtGG4/YqOnbQsiv0P373+litJO8fk6dNkRRc1VXNpeIBnPMnA26OmqUZovArRx/5oiAE3pXE2PVQxbPD23bi6ViLNDJJ4fSwhlkgklF34URv8ErQDqgbF7PS+CZeKjRQ7fuN6AtDPwu7ya+a/keYo1yquR/sXr5mHccLdr6ypYkjTsFc3uMmemdTwyjLfFBGnbuOVD9MuPkCPGyRBsLBKVVsc1biUxFjKXSjK/bPE3kcixxmGA4fcOC0fUA3HhvYNnus+Ev91mAW+KicXPlI8oLYi2qutBDaJmpBrwc37cnXCgODhgpSagPwJP5rEZBF96EPDZz/9lD+vVlnS1FBmfi/Xb8uxamIt5AgIPuFY10uID7s3vbXHTP4w1BDRXcbg3wngLxf7SpXkQto7HRiaaA2JOqjKYFvs3L3JiwwFatQ6DbK0pECcjaU9NSUxAacGQ97Filcr0lYoXeV9cy4QGpaCFJd774QC5UeoMyxa7ZUJjqrZYit2xLtYcm1WhuCgWIWH+T9xh/p7g5D4+pM6i7XdNG4xeaVq0w980bYStOwjGWlDi36YjJEbKkqxXxMgefjIEjFyVkbUaDd6B/IiaXGraCs+qRl2CBPCC2HJ799KjNdwDB237PRlEwgYChCvuateIfCqp3T5YL/s81IRLBOCEWbsx2TKiMaMer7kw/aIoNOXR0lYqtz8DxU8LeuNuCeG2sdrAxf+6GZlV//pJ37uIqMdcCfRXlV/lkrvUT5snwjxSevsSEH8meBSi6XGNNeq1lwkowdgGCeltEJ+A2Wh6uDckggwhzh0MQpUVSMjRXNG3NU8EQqPM5Jhc+cZ2nHzM4UAg23sSqbWlJkaSao5USOtzCF/sjd2Xsm+0D5CWUIuUb0c42Tf7O/YELrJ9cdb7OuBEPNmnW5RS2gpjOr/OxCbTfSltpEoVZB3dgJYFzs7muh85FLywykHZoSs648ODINYSCjvzVEQVS112NyPB174mjQdikMYF0MoDabx30CAux/+jWlWT+luLeSOlnJ84NyvdRczISYFtJddpclQ/O45x+PyaT2uQ1QzZ0xDiKjZk76V5cfL5tWZRj7ClSSkQKWVKKSIEVLJp/NhMbjRmFdkbGk3XZ0t8nBeA7jumzOHjTWuTnSnBXXtpmsFBsbNObb7Rh+jvVr2mb6pTr6JY2VoNhMSIRrm8ZTEwLSqZy7n2BZe6tL9/wmpMqrpHV3s/H6+ELXG1burtkbhpmbbQ3b3iMUyT4Lg1Wihjqs2KCIbfT5AuG7eUAGuljBM0349bDzkFiTOjl7lgw7Mw5j6n/sC7ZMhNDWy8U8zus3AGoLqPURxIvunAtBYo1otnm+Ggya5JULbOl6Fv00vOfknJO4t/gd38nyD4nC2Qkx+m9wL8oZPTNFlCqhQN7ivSi+KjkFBUIva36My+dz60O94TqRbymX0NjbjVes0JQ/ZA3ROqPtng+Nr1SaOiGzOke73+WYGQ5xhBZF2/Olc2/U6olhSn22Si2ZbVVqUPfYCzCFqc6minA3YU1PJGqvEfyoICsLhNRR/P0Dc9dQWAaNjTrBDekS8y2BrXhDQKMRqHCM8CCanxwkNi417U/nS4rg7nJIBK1I8c2/DAMu8zd6rvZJL+LKUH+OYgDNo7+aWMVR2Uadrl2g2a2kvC33HOapfkiGCKwJFz0JExh3h7gUrq+bcxGoQeSL56c5yLqklG+GTFUFUmATOlzvcLwpR9BFduZgkCGeSgVg6rV6lbzgq2haTTgp7tXc+b0g+pIfSGA5FFhNh7WSXR1NbEGeP4AXkgS6NZJIpA14jiw7JUWQuf2ppcMPJUCqGDMjpVN/cF/Vpoq+6C49bn1dogdOjVytR0ylc+N8XUWh/UNsxFs8PcUPHAosrI4Udv8d53GYMqWpOfr3xTMhNn6b+4VoeqLhZdQ7jeBIXlKIDXbS3en3f0yNwDrJoDZZdOLA1+ynQ9rAZLJRPd/2rOztZO7fk2eosAT8KHmDizF/iJ7ekolNPVw5/dBfqTffj9AdVrkVyNCB2W2P/4COOfi8I/4I7rlt48b2DB/EJcjNnifODXxLprylDD730ifCiQlpiwV1LB9H56Lt4ZvC0lbXkXVvH5VSQm2IRenQZ2YG5pbrAKmX2MCSkzpar6Dkb6c2C1AdkQiI/GuVo/CiX0snjYuj6+Ks5sQvRQKyVdHHND24nNvRvLRNwyVctRo7NACgzY++MBDrSDrgeLF+7vJMOLpKRyYhUbykYkWm4WBiCuLy/qVdPE89TvrWMEolvOYp8zzJwe6I35D9OAjRedISamXfv9WkTX7IxWNxDQCL0tNpeSuys/zrOeA/F31IRksrkKvoKCHz6ngniM4ZiWbXScf7UjTriOYcGX184u47lhn3Ej+/Jcn9JU1bUTjY5A4ACKeUgtLH8TSSWLCq2oZonTLZy1u+HtKKkfYLoy1G6bqXuV0LQnm/bex0JlAkx0ChcBhA3Hd5PCVZnLe2GH+2ZAhVa32tnRnOGxwYGRYClO147dETo6t7EJWJq4kQUEqm4LUTUvUGHsecYH0RPvBwwihKxgjuSTIbFrVEBOmg2r0TWry03Mq8fqytZ1vBgDM9vMRTun5i5If479lVCFVFwf/B4ZSZ2/8MMuoNwWMQ9AWDiIGcKmC0VjRA5U4gRUYYR0RiKF5DlqiFY4O4/C7BvmiawR4/A15FJvipI+DX4QpDNa9FruOX4jdcVgIPKrli0Smk6lJD0m+5e/5Bax9BSHpbRsS/RRNPL9VoFUIqk+EldGi3sXmIf05rlFX7GeQVN9aeldutkmNwfa6W7VQMSye/zobUHrsEBrOrKcgjKDrMcIAlWfFQRUZDx1B/YAWVVUXQSxVnrW0JG8Kz1zhpr/EWBOpFB8kpiuVihRj6xfZuMHSA86Ep62SCYljL0HibeD/JYcyiMWnkiwBDOdmV9qa7Rn/H7jRWHCT8vFzsDmwq9EZOU+XIbvsyW7w0pK7QvPzpH9kE4m6QPPfV3dAy8oKspNCdXfWhVTaI2BgXZar0jSw2BozAeASYz8DvjORBJyVyXxNVdQnei7kqnfPOhHH4H2nPaqon/RetVFayDbTDXrkXNe139tzMePnkHhoM5jSYTQlhT/ZoY5Nq9T9U0nJbk3wKNA1GPL/o4EOaWrccMdbX7Efch82CAhA1opsqHwCtlQDKgw4FJaTHWqCvpPrcJCdqovZ1qVmFEB8nCOcEzVeerAmDXvppdfBMIfEuYZ+0oZOVErMuYEOL0EO5D6rXRXrXqDcKjP104Ob6ktV7NpDx5A6hfdWulNWQiLaWNq9PYEW/8jS92j+9diiPvPz6106CsvMD16+od4xyw67uepTRdrrg6IyTNp9bF8fuBfbQAxJQ2u3LCN37Kx7xj1p6b1Whr4chT+L+eM7uZe+hFPEFYejplcKrFIh3ENey+oypkhhD4+pAXbMreOnAOvQKja+NNV00Zkh2Vwr5vziO01ogZDdZiGQq6bGEQWVHdqh9KQLANhpi26Cfsr37xkDglRVTNF+G71VcqYdSoA+DW/BE2gXSIKm23VKQDnLXiMB4Y3IOdEemhSD++mKASjJVlZ8oa45nrNvAVp7wL2wS7486WBkpGED3nM5ppsGT68AkKUcm4gb/eTGlnb/NAbcuOu8TFBwQoV5EH2b8rjW+weS0aBkpCG/dahE251tic43nWGEH9ug94cTfWamSuSsD2ligG+rFMct/w5y2JyBnikHa7Z7EZLXMUX5EFKbmwUAfbOuvfYqz34lXLRr4O4RaGxWEk7I/BfE3eIMGAvsCnfK2Rgu4/IdXtMRrmSFHDAEcLGxftfoyJLp/T06NrXJpcCg7jGGS5CQnLKF9kKg6DN0pLoM8FcxYtyVo9M3HotWtzhP9he8eezZm/w/oaehy6oByFNScgJddssaNjRnE8XxrxBUwfBfvuIuMB/bB2HKMacx9LeF53CD/3XR//9okwPZR1SeUyQr1G0zpAyN4RK93pDCalmB9jbq9eGyOQRkGszUQz31rb3w6v6pJE8aSENsy+KFeYkuKtrpG5lyFURb+/G9iy9TocDg6jiASHYBKn3xpcu0lhcZjxjLxqqmJUEqOgVUdRDkCWQRztNcWvdz5JXQ717ghDMM+dUd9fIJc9l7GZxJrnQE2VEw2Od8+mTgRFPWPc0qJ1UFBC6D9Z+oIsOH/ObDs4Km3W7h9zLPehywrSzGguMpn7P7RXb9qgLK3rASvLl9IuxMSBts6J8V80fjrx38KxaOPVn1BwrcgEjD9oLkVgpDDUIUkteZrOGsAXHoK+/wZgpi7oDC/D9SvFEdoAsOJJda+miou5psNtBWs0lPWTSfTEzchn3goJzbjJw2/MxIhAfV5muAmfFO/WBeHVKoR6NsxbCoqbyWiRv7D0WfwgAGCLJ+uuSQ9zIteKt+x6nzkUs3Zu6H6jzaJC4HyyTklVohcXUpXkaY4tcekUsa5SiyXeB6h3rT2F7t45zomBHdlS091OKcdQV2hgCpC1c/X/2ltpKldEtkiFqmzCDgUWPEbBL5JcrjxpY5LS83eisSc8J4NESuB4FdI8KqgIm3DpQW52JjpJFlpxcnyAxfInXLpq72eaIPll30wZshrE0VP2GDb62peIcCeA/YT155hSd1d74swqvYOO1dni1MG2cCHtyeNQw32OPckyfdZJG238Rq3lafi/QFme1CYWudc+QMNlZK40EBqykcDcF0pFvbEtAi7KiduQQMXMOK53cB9T0pcCD5kGvr/msoldDIsnjzAm8XqM38jQqiKjJ0uuy+RYrIh4qWNeqEAHK6tpB/OFDt98OgZl/rCmxz9TYWzQndV5m+y+N9NXjGJwjYPBPFvwQWvRdVqd6p79wzJmfJXbILiRwWA0GXkKjbJzyvO++w/lp+mAAjf2OzyNt+cW+2EYJ++ITdxXkcY9BVdRifdhk6V66BY4sxX0UOr0FaIFZhV/IMU2El8hkyc/JR0yop0EbH95dJxURfnQ5aT3BzVp6B4lI5rYXYYJrPiwlJo3y0LoRpNgQU9hmESvy1YkrTHaJTm9PF1crBPnslj+2RyZa2wJB9o/LJ9+SyG2/DOv6xHXySxvp0ZrxNzzbmkMjHq5cQSje7hG8F3G8/63qdA+Pd7SzuZe3llKLgU57TA0htYtPrCUPiROV889y8akGj5waMxcUWFnt68IMLYQ13Pn4FLmsB6x88ifKyxYKFTrHztGYl5poUnmZUXeEFRy5PFsvA1Qszz9NNeddtGp6sB5zg4QlvYbCmCZ046QiKk95X0wa38cp61/39KC6sIEpFIMAjdB1VxeDDOe8mt7ugJ81XEubwXLGlLqlUNtqs2rk2c1rqlRs7xW7CaCra8S4+R6BaD7v1d3PpYb/fc+JBp9eFB69+nI5Y38L1bcre4gb+PxU2KRXWj1AL54fLkid3SWVUrOnd+McKGN8hhYWIY29xowhJOdv6LMLYGf95vOgHuOy43H/aTMhigyFCNXJvhbRAFesWpZSzzFDKO/qfBTR+03wPctDgHnHIhnrAnHbrChaLUmMasxgQs9cjjkwDsVWH+WSMtPbHBqok8xVBhadfnxMy+eBgwxkN1B2i7Qz/Ag3mUpeRPkkJzMP2eCCQ0UIevomoFKLx9koLja5nr/XqR0izQgJTWPCgbu/I+Evy1fpfnrPoHkdrdxe89f4VdiPLDwy4O4mA5CLoPGedtgZl3NssSsA6rkl5AIBIEfQuB36UPaVNVNtnOtEy1Rk57c/nJb9P7PEyNsG+SrM1FLKtxoxRXSsHUd7GRfj9Z1wOgVyCEW6XVeSFDiqQtshY9d3CVNGxYipHrD+Rezmea/6Of4CkqEONy6/TXzag14YFl7Gcej3+DSBvUjEgwv0rwS+5lG87vvRlKxYqJNSNN41TvCNhdFIoAAj8tg8tvIrBvji5Km3caGxAwe2LKVi9Dogyo7bN8AO91TX0v0fDqLQZykKOYkHufWUA3tBOPyoFsksGO69+lSPdbnpQMQp5fKsvIuCkuBvB1TtjIdodFZCjS3GJcVJ2mjIzdkw13mALbbYOpcoDfPMtsHTt1XU/r0rrNkEahf6xzk0TCu8IMJ20sY/KwPpjQu5ItgJX449jpzjV8jCtYkS57IPi9lSVo+v5RZLNa4RupTCpIT/oa8/OoMNmVhjelLdmjkE6v2/nG9JoKO0mgDzl7UDuRCiER3H3TGNT0mnoltMhFIAS7UJMoGjr+TS381N5oONP5bZp6wRTtC90nR/KEE3cenGARkwHxBmlbFwuAnldG1Gl3Z6l6mp0YG6y/Gdz55qfpxCVHcD6e1TPE3Q+ySzg7Bj7cHHFkMSbIltqEuT9/TtCu+ukaSFo8sIMBHkZz31mq2aPGfmQosJt3Yi/o7/40BqZmM3RXRdK5TJA1/W83RlmKLpiLqepfaASfzODyKzs2kAr+t3XyeoWIOZLsDwDm0+E2tSXQLS+ErQ50Ig1+VBEHdUdi3crdS1S4HlIfYEx1iZECFlkQ9GbVtDJHs9xYX+XNSUS2GSadHxgnhedXtu0Ao2fyN1jXkj/t9NqimAPUMBMroxGQtTrcTq3Kt4DXrP0Y4kJCVnRIYilExqoUnJYeGz90+/mMHslUiIyk+N5GmWY8auW11VckvveegxPn7ZB1tFBgPJPnIoi1VP12lpwW2uyg1XDkuhpYbekYpyTP594zUGwZ+S+JTTLlhyK0YNh3Iop1sIFUz5jite+fiQpAHZjhjuSxFhDXTSifxKOvXgyvBPGA5Gk1f6a/I+LznIrDwPyyjfvtDmvki1MPaqryMfFRXEOkek1x9/r8JyXQlwlKbQukotlanL6axm3u5hggiADK/VzLhJWSAvze+une8PpsAO8VEVDNv8w/hJF81R+R/03Uz8xe44LTsaPawbZYOHXd7OqgizEK989NWCDBxKgHeR148pUCeysvzx7nO0Yjay4jgxAn/FtFDOUZUsyft+0lJLvgpPLS7qMwwfUpNhdLaNodHUPIVNnnC54L9V8R5BYrRyEGeudpOhViXunUPJ85DK/hDrjptfX78rNa53eghBDH6TUaKwVsi+zwyVHg4FAonTBNcoyAeV5lXUIs8myS8PXvzR8deYdX8GYoUUdN3fb9ME8pfP2NdLBD8UhHK9gadqhP9/nHSjtgfecZE2YmTSpq/ee5W9cAal7uzLHfuxBSxvAQImFHszlke7Ae0hzsLQGXa4Ce9/Zs8lva7U9vZyFdM+ZCnqP0prKOiY4z+lYPYb1BkQ+yDyxbG7TxpovR93vFjvkw1gSYOG7sQd/wYL7lp2frpHaRWVOWM1th6eI4X2KmoESVOcM2w6bxfveKx1J3pVWG93i7g+EZPlmB5VdGbtH7W9opigGVLxGRwQm64gok7OhK5B/2C8Zik5fEWKloQFmTkow9F8QRwiRcQZ9/nop5pIPdKAaT+yoIdDhBatHuhL86aIzk9Pgw4B3+oinrxoA+e7Vk4JFFoknqmhUYQtZWOwiApSoBUmBORgY+YWz05Eog1NmeTR6ynrXEem//BSqvxsOWsvdCew9Hv3nn10SSmTBVh7l/ef/BIkWl1Ts92RRjwXAPL8BuPN8oQc8PEJSqyuatY56GeNcAyy68KWPb/88HKf1lG6vM2rXxsQ1paDRuI04lYGlKUWqj2Z2r/h1DzpgRzBjD0N/Luj7oq2F7dCLm1oHlF5AoNF2yZ9LliHFhXaspjQrb1AB5uWgEOJq5DU4fNBBasJTEaA2ulcQokTZnjhyTgQH77HA0V7v1Adv9htPYzCzVPy0h7Tjhnrsf5NLluQp3egtXl7OF9/Cp35HgBl/9wVh2rr+EIcmoLmPI6cNA6aPbCLWf0bHkSNLpG3lIPmeSadAKtcYwQ66jE9nw8Pb8epv+Q9B1xVLlgteMVNAA/kT/CNsv/qm87ASsTjZv5odf4D7EHhcaTOuUTfCPG1zbduRn+bdBPc2/SH5Fjl9D5LOHiHLq6IFWcTmrcaS2cyrT8qX0rur8aHxTSOL0GaeFVuy8Jp4mO1ZSCQ2bbMJdX7KdDRgs41jG4U4C3DrgwloG/XQ38DfFpDXbyQ0thb8JBdaTTI7RGG7ccVFzPncXlQcsnzfLd/PmzkY+4KwH9pksR24cb1vSHEhGoW2oJ47yU0AtUTbi6Tmi/NbXEV9cbiZhacSc0qwbNrQnGDWlK3TaRUfXVA2h5mkAAjymBdiuwPLW7rJuesvxVXkQ2jrsxMFZiLUveQKC1+bKTIRAE+H6gZr+9yPsRYYxaWHee/MxkVl6WwUyNYS+UIs9APNPskReSMmbKpFEUTC+0+nnAa7Cmog3Tjhm/i5fEzwhuu/6+rD05k8ui5K4QQXaSYUPBe/ZNwkRRxwl+/abTOIPOekygnz3+WfYwohborJaf9t9pE4Hg/85Ka0FGKTFW8IJJlmiZdJPkXgnYlrJ6aZqzIP4DcUILUG/UHHJTiUx77+M1d5EOFp+bVxwV706K4Nw7A4iuAxd9NisyctTsO5oPFMZTufy+4UKmQl223KGhBvbC6zPnGMxFGzXL4Z+7tPnQvKXER0ohp6zZYpAA1IpXUqFO/iPs6j9ce40Hr/UhpYFvqQysh3/6hKGgM5pd/tUJJyd6kDJ1BbK2GXIEk2mCJ4ViKeBSTvHDdebzvFfGaKDMJFImjDC6wEElTNvZKIKwsorsnbqH1CnNsDMRA84CaHuEKVYA73jix0c5jWy0Av1EYG8x6geIyoHdOYOAtWrXKogrDV/yiZBdcxUsoLWmlDGlVW/33tuuqBBPJ46tsNYuMzFVmT01Q9IgMbBGXwI+6j7Sr+CjEZfPXVUb/cArjBCpLhnE7TU7spERQH5q/3JAKFyl/tgQAJ6qOQAe6Khi7qDOdGRvfwnK7GCumm2BKiCME6A6MMHST7mnWQA5z+vx6JUdr3qpUttQuU4HZUgyIcgnQRNQtukwhe+ztiUJnbturOrJLYG06C74YMAD07NdnMTUhbdl6HPf4yLS3uvd9pglfBj2f7x/KY56WS8PrkFSBwkT9tOkBjxi99VDcJqLcuUXcc11k1s4WpAD+HzPpK5Jh+R1VnVUXRZp2XVA8rfZ+u8jEKo1GQyA92fLe91JQXNlEbwz0ztCMYN5yDCcIxBVwUFzNic78Mx2Td0ZXn3YGrErrufarsGb5ajjBz/FZOKxtnenzsO1WaYEFqhf+Sbwwr3Z0J8GgVGORgJAXZ/63SW61t1fic2u1PR0ddYbK87oPEbg42bhvuSS56Wy0G5qo3cgX4HWaA7K0ueo559QmEFuAiYZAXPKL9sAEDZ4akLjXYj7i6zwSBCiGoGslKlAqidVjNyYmdQg+LZKJdF7gDeh0FLDA0xDgoF4RxN1J1juMsuH7dmHKW36/jvTE0AN2Q93sJ8YkuDIzhKi48CFdLhrNJ1ME07ukF/DOxZdI6un6243p5NAgoZjtrNqcZ8ZylWji/A76HLkoIZU5h0cGpYVw7kqojielbvV8bJf6fwLQgItSikqI+LYdaMGu3sIrvrJ2WUyYhElfJ43nb021uVyqrCeHXdo0vaPt2Gjg4aWNRSUHga2x6jLSONMT0X7EHEh68zrfA5yWNPmTEhqKCbMpgpcJ9kcdKjcLwoPZMUmoQY4SQAFH6KVeGTgKjoZRG3GPBaaJZ+0+T10NxeL7n9GjTiiB/w0Dse1c5LG52YkwWp9C5e9bjYB23e/tXZKnJ0B00zBM5y03gitoY4R9iIWgak66RyZRhvDDtmbiXG281Jnhidu+u+SDQVDGs7nb1/gxgRdvnUQQPdBAIiBxksetFtOtyByEDgbpIba+p+LhbS+aqe0fHqcbpb+EH4wT/UmuojY9ZUwZaqCXuzGWEUjZnAFFcmRHSulmeUT/Y/mrb/x+sg5clruMpzrtYzJZH8g02YIDQdeckAsNJl0fbF5Cg0Va5bG6IJgY1EvqKUCEJDwBGFI/lWWSV0qUE6lCFF5eTXomBVL64B+0pAp4cDAeidIMgkpPRFcw1QC9lPIHZRcUDYzsjGa79wGtOCATLbnuk9equbjTUwtN0XMtvHh8BWDD8ywoPcgaW1R23cWT+wcbeblpmkIVGXDR39nAKt0EeL2epQ2Q+67Xg/gp5dptPZgnTYR+l+N8UMzox8o3FN/Ef1NSfdZVVtKC6XX31mJt/HaZJw/4PImbKHkrEpB9RV8cnI/y6P0J9mo6qcyY/pRY2vfTZLzpitPM898NzdcZXRteNh8dwlrehQyh/WCUUeWM0vuooJ1xD4OKK1YQtMMzwd1bSU0BJTwDy8EftsdRcgNhzCrnuGvImxKsRZSVkv8RNXztPK68IxnuGNSHCr2mQv9l3E9AwtqBTKcecnNL0gLMV4h10XG0nMQEVrD/PtY7hvp61ESUiGddbi+Ij7n2W98g7CwaRAzc9GhrMhMnEpw+u0clCtRCqblprz36oGgV+nq44SD9nLViDJ+Rhrk8lVci/ipbtkWaED8yRtpOUyFBlYmESj4GudmJbI1zgcwMIlupS7JAwUC6BjcnPkKDg6UWvwlKyFJepNLC65CBjOe5weJcIsDANn3kCF2oqCaQLnNFfsM2d7CICE8qe35NlhA/K+fp6zZpaFPJJpD7F70Ck44jhPq3EtRDCbIgS9qgjj6CyWKQxYLJd3ng7NbchPEoEeqA6J7FJIvisJcQwhWPTtnl9oOzbYtU4kKTn/3/2IfaIYXrz5Wv4crOwjIzmndi2XNQdPNNLHqMFXu4nO4Br+HDESy7gJcFmagzpn9PEjIraAC+25YLGrylpf+nrVjCQhSZY+/6Twjk2mEkR4GuLaolwULr9M6ElDWIIgLJesVZS1Y1hH37muvtLTELYOTUZ6xqr9Ya3+pCHP3oZBTN4GfEM4tk9Yg/l/+dGV9IFcX9gWG9A077RrWKXGDPv8vRyG1Nrb+mYvE4nFEw1f7vYUfZ8v4cuNMGAYx7fKUST6tTyjIFAOtsVRHqsBgxplfw+zQCUJgGQbcObzqZYLIXkj1/wovFEeOitciIXpI4blMNrbFkvDigisDW5/txUVM47wktv4esvyPGDTQ6IJxU2NLrP2XZzWoHW8iT/taFQZ/39fCvlFWMMv70y+3cRQNIdBH8BVtYu6pNTLyE/4uTgnt3ZoUCOebV4mKF3qdz+pMPZR6DbUhpgUMcR6+wf6mJT61gksCYQurEjmsKaD4ZuzYlbvyl7MxorXWHP1z8TnInCwAaPijJ/QZVAmiSRwXKTEjEbSm8TllSA1FiDpIZB4OGch22xb6Wo9JVEDbvuWSEk8mEd76h3PyCty/PzHE3RxGIy7bFObbTW45pnSaBXPWWgThmnY2wAOM5gnQjzd8mmlAeQ+dHW7mBsn1sBBHzzed8YYfSPc/Q0sWAANvUoQsdXivBdd6kbS3g/1Fpf7NyUuUFtAXDfn4238j96NL8OiNUYtZN+z4K8lo5tZKzhBfS9zyEWlA0slF0kTB4RlwkNnFJkYhmf8xKS3bkWEUIiHHnAj1P3iSg1tGm3jWwm7GsrR1uMHSzQbeUTu+Q7ScYVhUxMwGfWouavNHkiYXWkMdSEa0aH1Q9I8rpa3sx4JgeKETvtfW//wzRbt1y99KGqLh9CHGOP4RhtCXMFiFxi5TDwSvIGnjv4GeZiDKo0chD1fDCQP/odYatRTrEC7Khbizs5YH/KPWai1J+8aduBE1kK7WZAs5OjWA+XeL4E16Q3TRY2pgMRaZFas7XGMwaExOR8roQ+/Y21jqQhvwqQgfMBPZ/dNtbVIAGMxsn0txzGgff08Novm8Kqt9+2h0r6cg8GUGAm2jYCLQvYLEnWpV76eJnwTU87oXjiHzKPii77Z+wzC9sCqsbAu2EpoW1EcvK9499YKk7e6eVfeOWpmfyrK+oHDE3ZxboWQdI5PhGw0M45Lz3Zfr0pH/XoM3nfZbIdb3ynDrA+UU5laN/nzu0w+1iW4ep9GSC7GBm0f8bdWLEF94E9EW/5GnuXbTuwXsakEKlBiEv/gnO3YdyhWRdO4iW6HomGPyV4mPVXnov1AaHwdB4j0Cz06jOaH9kkxoMF3NA29HfFyTVJFLM6aA1xuaYGC+2pk8y1HSGkxluU932YsRv2+nNAcUKc+D0qkEW67YcWae7w+Pq67S3YXMHSpbIAOY7ajNOfcVE7yonNTqWG684Tyrl34vyp5jfyGpiQk/r6dciEWax6VHs703zyyLAU1SlMDRRpW1XOS48SX1K5PpaxJUnxbGLtGU5QV4ZDDNR1F0r6zpAg4o+sKNoTeUSB03F/FoXjKsDISs4VwQ6xHkVLtFu/966dOFMzbiAGXfR36wg6j1/CeIfBqk29zi0qyy17zJWPMLkBonJTGDXwQJdhGY20+hc+2ColFJP/8xQFva7BTYnUsOAxHXmYN8/Qh9xgR1b9tQOiNhKsrAL1OeUcCLstuKDhABOrAXjIBoOWripgFgIDmqLzTmHjyHEgIm4DotNMNZV42E05MBVXU81dLZIqGySmTpKINAwhFxLMDzFqMxhXOO8ggh1pKzCjkNyY/UO58+7zR/wjNOJZqIfZu2x16WLatwwQ63B5hV5VZa+f2PATD7mWiXKDcTKdnMPfJUEAoyGJVCVWuybtlZvpmJcNtBkgTqUj7HNodOKDoAUoFIuzn26dQ7+NfYnabOGWl9FTpDxq/PbmZn/b6E2Ms1cEyL4WgichdXxgEQSetcMtgfB28nFuRnTMUKsta5xHyTJwvghVvfTbc+QvgG+7lI3AyBTs6zTRNC2wnmNnY2M4pKyrb0FekJ4SXCnWze6iFITECsxGlMNAotW/jdDZd8RmhWwq5EG0H/Rt8QRpQ6N0s/Mw2MehQct4/B8VukSG7tWYoc1j3Kdz3siuMM/bfgGC3ZYg/1zNjbBFU/XcLg5YU6/MUGgOhMWNnB6+aMP13AcVJ95gLZGSFcQ+1oJhKyjouAVLC9lE0AkflMdp7gtOvY8cVWoX8Lcn+fuLqvASsVlx1g/JriiWdPHWAu11h9So1HbMIpS+lHUDiIpnDJH1nTqujjx/BTfIocy+X6lSd60vygTxd3GMl8qtxMpGHiymjSYxdU2u1kh86LznaR5kA9AWWWHDwymcXOOsfA8py/EmZia87T7X/xuqBviyDIjMSL50VRgSEzElof3KbgQKXAbuEzbVwi7r4AAKP+juR13c35OBN0TiAbL3GYQu8mWLpxuW28docBIhguDLtbpzjz6oGqps7wHqDUHsaHx5k9QqXC64F++En96/mvi2k0NRhs6qesj8uxq4L4BJDIfIwgdXm8HqTI2+RMomLjOzzxi+GUoAfnUoncNlaeAZ1UXCN5ag/WO1rP7gVTZrW2hRAxwwROYPkjuLynOdu4w5tP7+jiXvsMVSV4kEh1TAqNu9D5mdXapPljoC/Y6Ty4Xy1kHbQSm/I7lo90qEJKK4EnNvRtoAC2q+M+Mlf5lVNd9rkn8URGfJm/ME5uMMXMTYQGOK6h9+3cQgpkU8Zne7dPxCkDALp9oETbfsBrBkK//zgX83o8ChX7nxGfAZpd5rQJogDIGR7a7/KVZjydFTg+9/S91WZe2hYvSllpknCyLzEodUW+SbZ3mTbMdAQvy5JK7EAsE7ZxwSXFimJEDdAlg/u1UJQKsKjNeTjUAQiDGdhmwo1no2hYta53FBjcwR00oAbPaZgzjbGv3UOKR/eTvlo4gHNuYljZAFON55P/1DemuPuGQ+LETu2RmE8gsmWIOSVSGg+TIuHS9HcLI7397FCzgcn+nytlqTxL5GNcNKfP+clW4LXA6zd9hmAwpHv2TSv1hxP7gBobWXKDlgF+nf2Q9UpJ3+oLjJ7Ooh+V7B512/nUWuvrdSK1940FSr9TaDKv4QI7QTYCuV/vinpbOCLbg5q/ikKUuZD0r0RVImZHp27n8LM+6Ukg9CjX4kp4NEnIvu3brNLEiQQ4p7ApuvIqo2fQxo/gW/Ek7/aK2SgpPa44Ges8kHVCHtA2Mh3O+rQZcI/0dQ6xnh0OoihtPtjYV4aiie8aHI3dTb+TrD3cx50RFKtnYBQ4zr+iOVZb0EarBhHcNnDUsSuFe/KN4aNBESrITq2XLh8dRZUadB+x6kBjZDr1zpB1IYR1IQ4R024fNolNmR1R1CQuWzLNheltbv/Z8UzXJ3KQk+/3Gd56jRr/6GOgLh+GSYvbzvJQlR0Rcv9U+ZrdHB7LzsK0nS6a5Eyl2sdwxMHx9ZA2GTx51Yh6EamGfOMNSVCQV760FheHgCMCrVI7pqDROcaRlFajR8jqzh8xw1Ys+i+ih0ykgQBtXDvuBBlFnUfmLCDyTb7vqBsu0jiko9Xbk+3cB99Vt8eE6q7RQmqyiAARD1xLAVffqEpI9OcS4I9cReVUSIxfwyTObwwff1pdXXkUTWrzWX0H80BHzHMt6Ob9i7R7f/p49fIzmx+n6RQJI9sUMsWTVu2vvjV04Ou9YcHxK1a38S7B3WaT4F0aywCISAceKO+/gVM2MxQtV3IuJD5ICdZbKtCJdFyDia7m9JL8bTr/wE6nRqB+GPlz9InXWeQjcHlpWI6C72kUsGa3YrcQUvoFJbTgQsTiEAU12bn9V4EWoFMou7vKPnG7KkKZaqX4ZWf73RQirjX39kNe0PjyKztrF2+0PKZQ6WqKtIdT2RKqOqSJJ8K2E3XFVfdW1nVC0WKvxG5P887WCVhwy6aSAB6XpbAXs7SGi30aF1eDSi3nP3lCoQoiV53+JTSt0mWHT3rmn41YocmYAA4M0kN/9IzImSSm3JJ3lgIiwliyNyYS7Fhmg/3gld8WKU/zu87NHlOqyIU0Yczi2G3A3kiWctU1mVDndEGw5k17wkqiurGfAz3U5+vL1OmJSvLwNb8IGIVg3kftHw7On0y01YojztYuBlrpuVxudXZGKiDyrbd3CaNcAZCAqKnDnDphwR9zccdlfCOxONhnp1TPwtfhPBt1B8TuX/3/YBnhZl0wNKEtthirqoWooQ2apTyzSz20l4iKXx8Un5BFWw6TiGitn/0AFZj9eZGbSMXnrvjOXrRnIbGziAmrBFqRpHXL018zbuhxv5MjexnYOVWUvBjahoVI7/z1ZXvnCCFuVdhL7upAR5X+lz///LnwHTOYN1nsi+/GzxLMmn1kWWx+b79nfS/oqRQBqTAcHGPYcIKnF4LPcCgWOXqk5cpn4WGrLWmFORQNC6EX/n30+UUsGSt/eZ637vMk3PPohRpY8+52UJ1OswK5kZwgSUFITBgcx+YMH0Oj9TC8ZoK/EgIAHHF0J/LlJ+1KM2q4RXHSM/v+H3mP7IU4MYC4NLkz+VlsZnDaTaDQVY/I0UbQOZNwlDWyrVoOS87XDlvmOPtFPf8N8JUWhW9mhUwIuUUr5yDf8zIs2487OgzR5EEbYoPS6EBrkXUebodeC5DC8Y7e9RM8upUKhc5UFdRNYaNbKWBvHpN0VOw+ntv8Hle91fClBoXXAvcXNheA5vCkeiEvHPk3lkMhurSwwocuFpXwrbWa/9beFfhWvDxz6BfbIx+kc+CCLaSSVfwrjekDZHjwl9sY24ESp28D1sQhP9gW1eRvhl0pN+BwKKuJbj3VaPYXj2idWXqFjBvq6QMkNUt+USub9D1zQxiDiB3ftzC95au2gx3QP8RGYD5+uThMz19JyHE/YHqN1qfq/7nAprB0ZX9wXolp2bdJ1Rhyp08sm7MYSKwYNbhTD3X9TGXrpeyJHN5I5yCGlyCAkwlTrQ8SC2f8mD+5ygTaziDuUeU+0WEmByOnxJbhh2z7zw9WJX+GYd2RU4IXaf4B5i2peTPy4jUxqaEDejoqUHLzFfEQdu8daXBk9FynC8pZusnkQdRFgL8vO8oyAxqtHXKDOK60mREHYaD2WS29Ry0FFo53D1TOgSRVAdt2AFekXbdUnVtLofAiedLb5Y4K8zzGpEgYtfKhcSsLrefk3BftRhZ3CFOiwOYSzV9JHgb12gkceIquNVLIy8gw9m5Npx+kvGTGV6H9h95mWOia+dESLD2kjAp0vRmRQXzsPamoTxj2GFNzRyWjtkWzmRL5NLHMhA3w/EcaWnoS7r25Gwmn3h0Fw/wkgi3pKwf7nLgrq+9NU+QCQqGgoXbhfJ4UaiUXLyBrCVf4GZckTCSv9YcKa0Y9ylHCugOESaavmlYViASjIw3jyI4yGNPgAPk1+EI71yNNfF+R0F02f/89/qva4VWedGy4PWFRWAbCE/6sfvopljeq4dtNCDF5M9OWGqe5ULAL1wOBPtqIRXpbW4lLSgN7CdY8xnD84xjwL8CkM7Vw1SbkAftEog3Fx2vcrl0gYrB14u7F5u5kBK+T6VQ4IUFCucUinRaJ22O0FzsJxXvf8DKikr8ScKsSZtyJLs1zdml1eCn2AmXCY20IkL7pPmQW+F+B9yp4YsLheYSWLzs3qqj/JV9+d/ZC3/Yta8/GhT0WwwDSaougOBJUEiIs89D96T0Aw/PW0QGYZAfUy43RHbx3isVee5iRPDOvSr4kYAXfDtseEIYJVw7cGVge3EL1eIDDvOUG5PV2iZ1+n4W0xcql3o0yJAKzMuLY5cgVPwuWNeRk+CBPZn8oF9iNCzPAVYsrOAAAAA==";
+    wrap.appendChild(img);
+    // F と J の うえに かさねる ひかり（おすと みどりに なる）
+    [["F", "f"], ["J", "j"]].forEach(([ch, cls]) => {
+      const k = document.createElement("span");
+      k.className = "key fj " + cls; k.setAttribute("data-k", ch);
+      wrap.appendChild(k);
+    });
+    d.appendChild(wrap);
+  }
+  function goHome(){
+    S.mode = "home"; S.paused = false; S.fishes = []; S.lock = null; S.round = null;
+    S.banners = []; S.banner = null; S.theme = THEMES[0]; S.lastKbd = ""; syncKbd();
+    buildHome();
+    hideAll(); $("#ovHome").classList.add("show");
+  }
+  function endRound(){
+    S.mode = "result"; S.fishes = []; S.lock = null; S.lastKbd = ""; syncKbd();
+    const g = $("#resGrid"); g.innerHTML = "";
+    S.round.list.forEach(it => g.appendChild(tile(it.f, true, it.n, it.isNew, false)));
+    const hasNext = S.level.id < LEVELS.length;
+    $("#bNext").style.display = hasNext ? "" : "none";
+    const newCnt = S.round.list.filter(it => it.isNew).length;
+    $("#resNote").textContent = newCnt ? "ずかんに " + newCnt + "しゅ ふえたよ！" : "ほかの レベルにも いってみよう！ あたらしい さかなが いるよ。";
+    $("#ovRes").classList.add("show");
+  }
+
+  /* ================= ホーム（レベル選択） ================= */
+  function iconCanvas(f, known){
+    const c = document.createElement("canvas");
+    c.width = 16; c.height = 10;
+    const g = c.getContext("2d"); g.imageSmoothingEnabled = false;
+    g.drawImage(known ? f.img : f.sil, 0, 0);
+    return c;
+  }
+  function dexCount(){ return FISH.filter(f => save.counts[f.id] > 0).length; }
+  function buildHome(){
+    $("#dexCnt").textContent = dexCount() + " / " + FISH.length;
+    const grid = $("#lvGrid"); grid.innerHTML = "";
+    grid.appendChild(document.createElement("div"));
+    SETS.forEach((s, i) => {
+      const h = document.createElement("div"); h.className = "lh";
+      h.innerHTML = s.label.replace("\n", "<br>") + "<small>" + THEMES[i].name + "</small>";
+      grid.appendChild(h);
+    });
+    for(let len = 1; len <= MAXLEN; len++){
+      const rl = document.createElement("div"); rl.className = "rl"; rl.textContent = len + "もじ";
+      grid.appendChild(rl);
+      for(let s = 0; s < 6; s++){
+        const lv = LEVELS[(len - 1) * 6 + s];
+        const b = document.createElement("button"); b.className = "lv";
+        const th = THEMES[s];
+        b.style.background = "linear-gradient(rgb(" + th.top + "), rgb(" + th.bot + "))";
+        const t = document.createElement("span"); t.textContent = "Lv" + lv.id; b.appendChild(t);
+        const ic = document.createElement("span"); ic.className = "ic";
+        lv.fish.forEach(id => ic.appendChild(iconCanvas(FISH_BY[id], save.counts[id] > 0)));
+        b.appendChild(ic);
+        if(save.lv[lv.id]){ const cl = document.createElement("span"); cl.className = "cl"; cl.textContent = "クリア ×" + save.lv[lv.id]; b.appendChild(cl); }
+        b.addEventListener("click", () => { initAudio(); goReady(lv.id); });
+        grid.appendChild(b);
+      }
+    }
+  }
+
+  /* ================= ずかん ================= */
+  function tile(f, known, n, isNew, showLv){
+    const b = document.createElement("button");
+    b.className = "tile" + (known && f.rarity > 0 ? " " + RARITY[f.rarity].key : "");
+    b.appendChild(iconCanvas(f, known));
+    const nm = document.createElement("span"); nm.textContent = known ? f.name : "？？？";
+    b.appendChild(nm);
+    if(known){ const rr = document.createElement("span"); rr.className = "rr r" + f.rarity; rr.textContent = RARITY[f.rarity].name; b.appendChild(rr); }
+    if(known && n){ const ct = document.createElement("span"); ct.className = "ct"; ct.textContent = "×" + n; b.appendChild(ct); }
+    if(isNew){ const nw = document.createElement("span"); nw.className = "nw"; nw.textContent = "あたらしい！"; b.appendChild(nw); }
+    if(showLv){ const l = document.createElement("span"); l.className = "lvl"; l.textContent = "Lv" + f.lv.id; b.appendChild(l); }
+    return b;
+  }
+  function openDex(){
+    const grid = $("#dexGrid"); grid.innerHTML = "";
+    let got = 0;
+    for(let si = 0; si < 6; si++){
+      const list = FISH.filter(f => f.lv.set === si).sort((x, y) => x.lv.id - y.lv.id || x.rarity - y.rarity);
+      const gs = list.filter(f => save.counts[f.id] > 0).length; got += gs;
+      const hd = document.createElement("div"); hd.className = "dexhead";
+      hd.textContent = THEMES[si].name + "　" + gs + " / " + list.length;
+      grid.appendChild(hd);
+      list.forEach(f => {
+        const n = save.counts[f.id] || 0;
+        const t = tile(f, n > 0, n, false, true);
+        t.addEventListener("click", () => {
+          grid.querySelectorAll(".tile").forEach(x => x.classList.remove("sel"));
+          t.classList.add("sel");
+          $("#dexInfo").textContent = n > 0
+            ? f.name + "（" + RARITY[f.rarity].name + "）： " + f.tip
+            : "まだ つってないよ。 Lv" + f.lv.id + "（" + THEMES[f.lv.set].name + "・" + f.lv.len + "もじ）で つれるよ。";
+        });
+        grid.appendChild(t);
+      });
+    }
+    $("#dexTitle").textContent = "ずかん  " + got + " / " + FISH.length;
+    $("#dexInfo").textContent = "おさかなを おして みてね";
+    if(S.mode === "play") S.paused = true;
+    $("#ovDex").classList.add("show");
+  }
+  function closeDex(){
+    $("#ovDex").classList.remove("show");
+    if(S.mode === "play") S.paused = false;
+    if(S.mode === "home") buildHome();
+  }
+  $("#bDex").addEventListener("click", () => { initAudio(); openDex(); });
+  $("#bHomeDex").addEventListener("click", () => { initAudio(); openDex(); });
+  $("#bResDex").addEventListener("click", openDex);
+  $("#bDexClose").addEventListener("click", closeDex);
+  $("#bHome").addEventListener("click", () => { goHome(); });
+  $("#bResHome").addEventListener("click", () => { goHome(); });
+  $("#bAgain").addEventListener("click", () => { initAudio(); goReady(S.level.id); });
+  $("#bNext").addEventListener("click", () => { initAudio(); goReady(S.level.id + 1); });
+  $("#bReadyBack").addEventListener("click", goHome);
+  $("#bReadyTap").addEventListener("click", () => { initAudio(); startLevel(S.pendingId); });
+  $("#bSnd").addEventListener("click", () => {
+    S.muted = !S.muted; $("#bSnd").textContent = "おと " + (S.muted ? "OFF" : "ON");
+  });
+
+  /* ================= 描画 ================= */
+  const rnd = (i, j) => { const v = Math.sin(i * 127.1 + j * 311.7) * 43758.5453; return v - Math.floor(v); };
+  const FLOORS = { sand:["#dcc382", "#c7ab62"], rock:["#4a5568", "#394253"], deep:["#222a44", "#171d33"], ice:["#eaf5fc", "#d3e8f4"] };
+
+  function drawBG(){
+    const th = S.theme, B = P * 5;
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, "rgb(" + th.top + ")"); g.addColorStop(1, "rgb(" + th.bot + ")");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    for(let cy = 0; cy * B < H; cy++){
+      for(let cx = 0; cx * B < W; cx++){
+        const n = rnd(cx, cy);
+        if(n > .55){
+          ctx.fillStyle = "rgba(255,255,255," + ((n - .55) * (th.dark ? .07 : .2)) + ")";
+          ctx.fillRect(cx * B, cy * B, B, B);
+        }else if(n < .2){
+          ctx.fillStyle = "rgba(0,0,40," + ((.2 - n) * .3) + ")";
+          ctx.fillRect(cx * B, cy * B, B, B);
+        }
+      }
+    }
+    if(th.waves){
+      ctx.fillStyle = "rgba(255,255,255,.55)";
+      for(let cx = 0; cx * B < W + B; cx++){
+        ctx.fillRect(cx * B, Math.round(Math.sin(S.t * 1.5 + cx) * P * .7), B - P, P * 2);
+      }
+    }
+    if(th.ice){
+      ctx.fillStyle = "rgba(240,250,255,.92)";
+      for(let cx = 0; cx * B < W; cx++){
+        if(rnd(cx, 55) > .4) ctx.fillRect(cx * B, 0, B, Math.round(P * th.ice));
+      }
+    }
+    const fy = H - B;
+    if(th.floor){
+      const fc = FLOORS[th.floor];
+      for(let cx = 0; cx * B < W; cx++){
+        const n = rnd(cx, 99);
+        ctx.fillStyle = n > .5 ? fc[0] : fc[1]; ctx.fillRect(cx * B, fy, B, B);
+        ctx.fillStyle = "rgba(255,255,255,.18)"; ctx.fillRect(cx * B, fy, B, P);
+      }
+    }
+    if(th.weed === "green" || th.weed === "coral"){
+      for(let k = 0; k < 6; k++){
+        const bx = Math.round(W * (k + .5) / 6 + rnd(k, 5) * P * 6);
+        const h = 3 + Math.floor(rnd(k, 7) * 3);
+        for(let j = 0; j < h; j++){
+          const sway = Math.sin(S.t * 1.4 + k + j * .5) * P * .8 * (j / h);
+          if(th.weed === "green") ctx.fillStyle = j % 2 ? "#2e9c4a" : "#3dbd5d";
+          else ctx.fillStyle = (k + j) % 2 ? "#ff6f91" : "#ff9671";
+          const wd = th.weed === "coral" ? P * (j === h - 1 ? 4 : 3) : P * 2;
+          ctx.fillRect(Math.round(bx + sway), fy - (j + 1) * P * 3, wd, P * 3);
+        }
+      }
+    }
+    if(th.weed === "rock"){
+      for(let k = 0; k < 5; k++){
+        const bx = Math.round(W * (k + .5) / 5 + rnd(k, 5) * P * 8);
+        ctx.fillStyle = "#5a6478"; ctx.fillRect(bx, fy - P * 4, P * 8, P * 4);
+        ctx.fillStyle = "#6c778c"; ctx.fillRect(bx + P, fy - P * 7, P * 5, P * 3);
+      }
+    }
+    if(th.glow){
+      for(let k = 0; k < 18; k++){
+        const x = rnd(k, 3) * W, y = H * (.1 + rnd(k, 4) * .8);
+        const tw = .3 + .7 * Math.abs(Math.sin(S.t * (.5 + rnd(k, 8)) + k));
+        ctx.globalAlpha = tw * .7;
+        ctx.fillStyle = k % 3 ? "#7fe9ff" : "#c9a6ff";
+        ctx.fillRect(Math.round(x), Math.round(y), P, P);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+  function drawBubbles(dt){
+    ctx.fillStyle = "rgba(255,255,255,.35)";
+    S.bubbles.forEach(b => {
+      b.y -= b.v * dt; if(b.y < -.05){ b.y = 1.02; b.x = Math.random(); }
+      const s = Math.round(P * b.s);
+      ctx.fillRect(Math.round(b.x * W + Math.sin(S.t + b.x * 9) * P), Math.round(b.y * H), s, s);
+    });
+  }
+  const FONT = 'px "DotGothic16","Hiragino Sans",sans-serif';
+  function drawFish(o){
+    const f = o.f, w = 16 * P, h = 10 * P;
+    let x = Math.round(o.x), y = o.y;
+    if(o.state === "swim") y += Math.sin(S.t * 2 + o.ph) * P * 1.5;
+    if(o.state === "caught"){
+      const e = o.ct * o.ct;
+      y = o.y0 - e * (o.y0 + h + P * 12);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(Math.round(x + w * .35), 0, Math.max(2, P * .5), Math.max(0, y + h * .3));
+    }
+    y = Math.round(y);
+    if(f.rarity >= 2){
+      const epic = f.rarity >= 3;
+      const gc = epic ? "200,120,255" : "110,190,255";
+      const pr = .6 + .4 * Math.sin(S.t * (epic ? 6 : 4) + o.ph);
+      const gr = ctx.createRadialGradient(x + w / 2, y + h / 2, P, x + w / 2, y + h / 2, w * (epic ? 1.25 : .95));
+      gr.addColorStop(0, "rgba(" + gc + "," + ((epic ? .75 : .55) * pr) + ")");
+      gr.addColorStop(1, "rgba(" + gc + ",0)");
+      ctx.fillStyle = gr; ctx.fillRect(x - w, y - h, w * 3, h * 3);
+    }
+    ctx.drawImage(f.img, x, y, w, h);
+    if(o.state === "swim"){
+      const n = o.word.length, cw = P * 7, sw = n * cw + P * 2, sh = P * 12;
+      const sx = Math.round(x + (w - sw) / 2), sy = Math.round(y - sh - P);
+      ctx.fillStyle = S.lock === o ? "#ffd23f" : "#6b4423"; ctx.fillRect(sx, sy, sw, sh);
+      ctx.fillStyle = "#b8864b"; ctx.fillRect(sx + P, sy + P, sw - P * 2, sh - P * 2);
+      ctx.fillStyle = "#e8c98a"; ctx.fillRect(sx + P * 1.5, sy + P * 1.5, sw - P * 3, sh - P * 3);
+      ctx.font = (P * 5.6) + FONT; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      for(let i = 0; i < n; i++){
+        const cx = sx + P + cw * i + cw / 2;
+        ctx.fillStyle = i < o.idx ? "#4f9a4f" : "#3a2410";
+        ctx.fillText(o.word[i], cx, sy + P * 5.4);
+        if(o.word[i] === "0"){
+          ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = Math.max(2, P * .7); ctx.lineCap = "round";
+          ctx.beginPath(); ctx.moveTo(cx + P * 1.5, sy + P * 3.2); ctx.lineTo(cx - P * 1.5, sy + P * 7.6); ctx.stroke();
+        }
+        if(i === o.idx){
+          ctx.fillStyle = "#c0392b";
+          ctx.fillRect(Math.round(cx - cw / 2 + P), Math.round(sy + P * 9.2), Math.round(cw - P * 2), Math.max(2, Math.round(P * .9)));
+        }
+      }
+    }
+  }
+  function drawBanner(){
+    const b = S.banner; if(!b) return;
+    const a = Math.min(1, b.t / .2, (b.dur - b.t) / .3);
+    ctx.globalAlpha = Math.max(0, a);
+    const bw = Math.min(W * .92, P * 90), bh = P * 20, bx = (W - bw) / 2, by = H * .3 - bh / 2;
+    ctx.fillStyle = "rgba(10,14,28,.88)"; ctx.fillRect(bx, by, bw, bh);
+    ctx.strokeStyle = b.color; ctx.lineWidth = P * .6; ctx.strokeRect(bx, by, bw, bh);
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = b.color; ctx.font = (P * 5) + FONT;
+    ctx.fillText(b.text, W / 2, by + bh * .38, bw - P * 4);
+    ctx.fillStyle = "#ffffff"; ctx.font = (P * 2.6) + FONT;
+    ctx.fillText(b.sub, W / 2, by + bh * .76, bw - P * 4);
+    ctx.globalAlpha = 1;
+  }
+
+  /* ================= メインループ ================= */
+  let last = performance.now();
+  function loop(now){
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    if(!S.paused){
+      S.t += dt;
+      if(S.mode === "play"){
+        S.spawnT -= dt;
+        const maxFish = S.level.len >= 3 ? 2 : (save.total < 12 ? 2 : 3);
+        const swimming = S.fishes.filter(o => o.state === "swim").length;
+        if(S.spawnT <= 0 && swimming < maxFish){ spawn(false); S.spawnT = 1.6 + Math.random() * 1.6; }
+        else if(S.spawnT <= 0) S.spawnT = .6;
+      }
+      S.fishes.forEach(o => {
+        o.y = H * o.lane - 5 * P;
+        if(o.state === "swim") o.x += o.vx * dt; else o.ct += dt / .8;
+      });
+      for(let i = S.fishes.length - 1; i >= 0; i--){
+        const o = S.fishes[i];
+        if(o.state === "caught" && o.ct >= 1){ S.fishes.splice(i, 1); record(o); }
+        else if(o.state === "swim" && o.x < -16 * P - 10){ // にげても ペナルティなし
+          S.fishes.splice(i, 1); if(S.lock === o) S.lock = null;
+        }
+      }
+      S.parts.forEach(p => {
+        p.life += dt; p.x += p.vx * dt; p.y += p.vy * dt;
+        p.vx *= .96; p.vy = p.vy * .96 - 30 * dt;
+      });
+      S.parts = S.parts.filter(p => p.life < p.max);
+      if(!S.banner && S.banners.length) S.banner = S.banners.shift();
+      if(S.banner){ S.banner.t += dt; if(S.banner.t >= S.banner.dur) S.banner = null; }
+      S.flash = Math.max(0, S.flash - dt * 2.5);
+      syncKbd(); hud();
+    }
+    drawBG();
+    drawBubbles(S.paused ? 0 : dt);
+    S.fishes.forEach(drawFish);
+    S.parts.forEach(p => {
+      ctx.globalAlpha = Math.max(0, 1 - p.life / p.max);
+      ctx.fillStyle = p.c; ctx.fillRect(Math.round(p.x), Math.round(p.y), p.s, p.s);
+    });
+    ctx.globalAlpha = 1;
+    drawBanner();
+    if(S.flash > 0){ ctx.fillStyle = "rgba(255,255,255," + (S.flash * .45) + ")"; ctx.fillRect(0, 0, W, H); }
+    requestAnimationFrame(loop);
+  }
+  resize();
+  buildHome();
+  buildDiagram();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
